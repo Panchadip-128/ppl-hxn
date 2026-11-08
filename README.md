@@ -1,14 +1,14 @@
 # GroupPay: guided collaborative booking UI
 
-## Current `dev/aarya` review: 5 November 2026
+## Current `dev/aarya` review: 8 November 2026
 
 Start at **http://localhost:8000**. The home page offers three clear paths: create or join a saved group booking, rehearse the fictional journey in **Solo demo lab**, or open **Splits** to track an expense you already paid. Cinema/Outdoor are visitor-chosen filters. Group recommendations run only after each member confirms budget, timing and optional likes. The organizer picks a plan and places, reviews exact server shares and holds them. Each member approves only their own PayPal Sandbox order; all required verified completed captures unlock tickets.
 
 The lab compares three fictional friends' confirmed budgets and descriptive words, shows eligible plans, lets the visitor select one, then simulates each authorization and capture. Its keyword preview teaches the flow; the saved room uses server-local BGE for semantic comparison. **Solo workshops** are a separate one-buyer PayPal checkout and sample lesson.
 
-Splits is an owner-private manual ledger. Add friends with a name, WhatsApp number and optional UPI ID; search them, select stable saved contacts for an equal split, see each exact share, scan a receipt with optional local Qwen vision, and record settlement manually. A new split can include an unverified host UPI ID or PayPal email for manual repayment. Activity shows open splits; History shows all saved splits. Subscription reminders record host, UPI ID, monthly amount, billing day and participants, and can prefill a new monthly split. They do not schedule or execute payments. A saved contact does not authenticate a group member; invite acceptance in that member's own browser profile does.
+Splits is an owner-private manual ledger with a first-run readiness path: add your host name, add at least one person, then scan or enter a bill and review every exact share. People can be searched and reused; each saved person has a direct **Split with…** action. A successful save opens Activity for reminders and manual settlement, while History retains every record. Subscription reminders preserve host, amount, billing day and participants, then preselect matching saved people when logging the next month. Receipt scanning can use server-local Qwen or operator-configured Ollama Cloud. UPI IDs and PayPal emails are unverified receiving handles only; this tab does not schedule, authorize or confirm payment. A saved contact does not authenticate a group member; invite acceptance in that member's own browser profile does.
 
-Revision 8 adds contact and receiving-handle snapshots after the published revision 7 without rewriting it. Existing name-only splits remain readable. No buyer login credentials are stored. PayPal Sandbox configuration, live buyer approvals, rendered browser acceptance and managed PostgreSQL remain verification gates. Receipt scanning falls back to manual entry when local Qwen assets are unavailable.
+Revision 8 adds contact and receiving-handle snapshots after the published revision 7 without rewriting it. Existing name-only splits remain readable. No buyer login credentials are stored. PayPal Sandbox configuration, live buyer approvals, rendered browser acceptance and managed PostgreSQL remain verification gates. Receipt scanning falls back to manual entry when its selected server provider is unavailable.
 
 Built on Panchadip-128's `slice/3-collaborative-booking-and-equal-payments` at `41ec3d7`. The latest user-authorized redesign gives his collaborative booking a light workspace, illustrated discovery, guided steps, private planning, shared conversation, adjacent-place selection and individual approval. Workshops and the isolated solo lab remain. This is a review candidate for `Aruisop/PayPal-Hackathon` on `dev/aarya`, not an accepted release. It includes earlier Slice 3/backend integration repairs; the complete change is not frontend-only. The group recommender has real server-local CPU inference and synthetic diagnostic evidence. Rendered-browser acceptance, real payments and human-rated group quality remain unverified.
 
@@ -54,11 +54,13 @@ In a saved group, every member reviews and confirms their budget/time fields plu
 
 The server verifies all hard constraints before embedding confirmed taste tags. It computes each member's opportunity loss relative to their own best eligible option, then minimizes the descending loss vector lexicographically. It rereads roster, preferences and inventory after inference and rejects stale responses. Model requests neither download assets nor call an inference provider; private query vectors are not cached or returned.
 
+When BGE actually runs, the room reports the number of eligible catalog documents and confirmed taste texts encoded, inference time, pinned model revision, and whether the semantic order differed from the rules/schedule order. `inferenceExecuted` is false for every rules-only, one-option, missing-taste or unavailable-model response. These are causal execution facts, not accuracy, confidence or satisfaction scores.
+
 Real CPU tests compare keyword, MiniLM and BGE, with raw synthetic cases/results in [evaluation](evaluation/RESULTS.md). BGE with its documented instruction ranked a relevant item first in 16/16 answerable cases, but these labels are assistant-authored, not human-reviewed, and used in model selection. The exclusion guard declines five answerable cases; semantic retrieval did not reject unrelated requests. Group regret did not improve worst labeled regret over average fit in eight diagnostic groups. Do not describe these results as production accuracy or superiority over competitors.
 
 See [the algorithm and requirements](docs/RECOMMENDATION_DESIGN.md) and [the walkthrough](HACKATHON_SHOWCASE.md). This algorithm combines established ideas for this application; it is not claimed as a new mathematical fairness result.
 
-## Optional receipt scanning with local Hugging Face vision
+## Optional receipt scanning: server-local Qwen or operator-owned Ollama Cloud
 
 The informal expense split form can suggest receipt fields with [Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct), pinned to a specific model revision. Prepare its optional Python packages and weights explicitly on the app server:
 
@@ -69,6 +71,16 @@ The informal expense split form can suggest receipt fields with [Qwen3-VL-2B-Ins
 ```
 
 The weights live under ignored `instance/receipt-vision/` and are several gigabytes. Inference uses a CUDA GPU when PyTorch detects one, otherwise CPU with substantially more memory and latency. The scan endpoint does not download anything during a request. `GET /api/expenses/scan-status` reports dependency and asset readiness; when unavailable, enter a split manually. A selected photo is sent to this app server for inference, not to a hosted model service. The response is an unsaved editable preview; review the merchant, date, currency, category and amount before saving. Receipt extraction has no authority over group quotes, inventory, tickets or payments. Receipt accuracy and real-model latency have not yet been measured on this workspace.
+
+For a hosted deployment where installing a multi-gigabyte vision model is impractical, the application operator can instead configure direct [Ollama Cloud](https://docs.ollama.com/cloud) inference in the server's private `.env`:
+
+```dotenv
+RECEIPT_VISION_PROVIDER=ollama_cloud
+OLLAMA_API_KEY=replace-with-an-operator-owned-key
+OLLAMA_VISION_MODEL=replace-with-a-vision-capable-model
+```
+
+Restart the application after changing provider configuration. Direct Ollama Cloud access does not require Ollama on an end user's machine. The key stays server-side and is never returned by config/status routes. The browser sends the receipt only to this authenticated application; the server validates its declared type and file signature, then sends that image to Ollama for the single inference request. The UI discloses this cloud transfer. Do not add a browser field that writes user keys into `.env`: `.env` is process-wide configuration, while the current participant cookie is not a production account or secret vault. A future per-user bring-your-own-key design requires real account authentication, encrypted secret storage, rotation and deletion—not plaintext environment-file mutation.
 
 ## One group-planning AI feature, with a clear job
 
@@ -123,9 +135,10 @@ This can query and mutate saved Sandbox recovery operations. GET polling perform
 ..\.venv\Scripts\python.exe -m pip check
 node tests/test_frontend_contract.cjs
 node tests/test_demo_contract.cjs
+node tests/test_expenses_contract.cjs
 git diff --check
 ```
 
-The full 239-test Python suite passes with mocked payment providers and model unit doubles. Frontend contracts exercise search, walkthrough, saved room callbacks, an unsaved rescue preview, confirmation and payment callbacks using mocked DOM/HTTP/SDK. The isolated demo has 14 contract checks. Separately, the native CPU smoke test and jsdom/live temporary API flow use real BGE weights. The DOM flow verifies taste onboarding, no-match diagnostics, explicit tradeoff confirmation, peer limits and roster invalidation; it does not render a browser. The browser model path was removed because it duplicated the group recommender and had no real-browser execution evidence. The integrated UX still needs rendered desktop/mobile and genuine multi-buyer Sandbox checkout acceptance.
+The full 245-test Python suite passes with mocked payment providers and model unit doubles. Frontend contracts exercise search, walkthrough, saved room callbacks, an unsaved rescue preview, confirmation and payment callbacks using mocked DOM/HTTP/SDK. The Splits contract covers first-run readiness, task routing, exact-cent allocation and incomplete-draft states; the isolated demo has 14 contract checks. Separately, the native CPU smoke test and jsdom/live temporary API flow use real BGE weights. The DOM flow verifies taste onboarding, no-match diagnostics, explicit tradeoff confirmation, peer limits and roster invalidation; it does not render a browser. The browser model path was removed because it duplicated the group recommender and had no real-browser execution evidence. The integrated UX still needs rendered desktop/mobile and genuine multi-buyer Sandbox checkout acceptance.
 
 The UI snapshot fb07b49 was published to [Aruisop/PayPal-Hackathon, dev/aarya](https://github.com/Aruisop/PayPal-Hackathon/tree/dev/aarya). This checkpoint extends it with the user-authorized local AI recommendation and no-match usability changes; see Aarya_changes.md for scope and evidence. Publication does not imply acceptance, merge or deployment. License selection and submission requirements still need team review.

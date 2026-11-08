@@ -40,7 +40,7 @@ Raw report SHA256: `993ba9cafe2280122380a7e937c9da2d27dda090064326ca93d0bdc9e3e7
 ..\.venv\Scripts\python.exe -m pip install -r requirements-ai.txt
 ..\.venv\Scripts\python.exe -B -m app.recommendations.assets prepare --model minilm
 ..\.venv\Scripts\python.exe -B -m app.recommendations.assets prepare --model bge
-..\.venv\Scripts\python.exe -B evaluation/benchmark_recommendations.py --model all --repeats 5 --http
+..\.venv\Scripts\python.exe -B -m evaluation.benchmark_recommendations --model all --repeats 5 --http
 ```
 
 Results depend on hardware. No numeric latency budget was supplied; these are observed results, not a universal SLO. A separate team member should independently review labels and gather consented user judgments before making a quality claim. See [protocol](README.md) and [design/research](../docs/RECOMMENDATION_DESIGN.md).

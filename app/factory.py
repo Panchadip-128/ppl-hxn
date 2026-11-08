@@ -31,6 +31,9 @@ def create_app(config=None, paypal=None, encoder=None):
         APP_ENV=os.getenv('APP_ENV', 'development'),
         APP_ORIGIN=os.getenv('APP_ORIGIN', 'http://localhost:8000').rstrip('/'),
         COOKIE_SECURE=os.getenv('COOKIE_SECURE', 'false').lower() == 'true',
+        RECEIPT_VISION_PROVIDER=os.getenv('RECEIPT_VISION_PROVIDER', 'local_qwen'),
+        OLLAMA_API_KEY=os.getenv('OLLAMA_API_KEY', ''),
+        OLLAMA_VISION_MODEL=os.getenv('OLLAMA_VISION_MODEL', ''),
         MAX_CONTENT_LENGTH=16384,
     )
     if config:
@@ -68,6 +71,12 @@ def _register_dependencies(app, paypal, encoder):
     checkout = Checkout(store, adapter)
     shared_encoder = encoder if encoder is not None else LocalEncoder(model='bge', query_instruction=True)
     booking = CollabBooking(store, app.config['APP_ORIGIN'], adapter)
+    receipt_provider = app.config['RECEIPT_VISION_PROVIDER'].strip().lower()
+    receipt_scanner = ReceiptScanner(
+        provider=receipt_provider,
+        ollama_api_key=app.config['OLLAMA_API_KEY'],
+        ollama_model=app.config['OLLAMA_VISION_MODEL'],
+    )
     app.extensions.update(
         store=store,
         checkout=checkout,
@@ -79,7 +88,7 @@ def _register_dependencies(app, paypal, encoder):
         recommendations=Recommendations(store, shared_encoder),
         assistant=ContextualAssistant(store, app.config['APP_ORIGIN'], shared_encoder),
         expenses=Expenses(store),
-        receipt_scanner=ReceiptScanner(),
+        receipt_scanner=receipt_scanner,
     )
 
 

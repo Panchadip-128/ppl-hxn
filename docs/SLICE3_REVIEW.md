@@ -1,5 +1,7 @@
 # Subsequent actual-inference recommendation candidate
 
+8 November 2026 Bills & Splits readiness pass: the existing private ledger now teaches setup and the next action, separates open Activity from complete History, opens a selected person directly in a new split, structures bill creation into bill/people/repayment review, and carries matching recurring participants forward. It remains a manual ledger; receiving handles do not authorize payment. Automated contracts pass, but rendered browser acceptance is still unverified because Windows browser control stopped before page access.
+
 5 November 2026 `dev/aarya` UX integration: guided booking and split-contact changes are integrated with the newer merchant and Qwen work. Revision 8 adds owner-scoped informal expense snapshots after published revision 7; it does not grant payment authority. The saved Slice 3 booking approval/capture guards remain intact; live Sandbox and rendered browser acceptance for this integrated flow are still unverified. See [Aarya changes](../Aarya_changes.md).
 
 Historical audit (28 October 2026): this local candidate was based on dev/aarya at 4fabe98 plus uncommitted guided-flow work. 197 Python tests passed. Real BGE embeddings and the authenticated recommendation route passed on synthetic temporary data. The live app then had no future offers. The redundant browser MiniLM feature was removed because its execution was unverified. Browser rendering and real multi-buyer Sandbox acceptance remained pending. See Aarya_changes.md.

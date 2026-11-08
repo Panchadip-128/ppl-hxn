@@ -59,13 +59,17 @@ class Planning:
         if domain:
             query = query.where(catalog_offers.c.domain == domain)
         offers = []
-        for row in connection.execute(query).mappings():
+        for row in connection.execute(query.order_by(
+                catalog_offers.c.schedule_time, catalog_offers.c.id)).mappings():
             schedule = datetime.fromisoformat(row['schedule_time'])
             if schedule.tzinfo is None or schedule <= datetime.now(timezone.utc):
                 continue
             resources = [{k: r[k] for k in ('id', 'label', 'row_label', 'col_number', 'state')}
                          for r in connection.execute(select(catalog_resources).where(
-                             catalog_resources.c.offer_id == row['id'])).mappings()]
+                             catalog_resources.c.offer_id == row['id']).order_by(
+                                 catalog_resources.c.row_label,
+                                 catalog_resources.c.col_number,
+                                 catalog_resources.c.id)).mappings()]
             offers.append(dict(id=row['id'], domain=row['domain'], title=row['title'], description=row['description'],
                                merchantID=row['merchant_id'], scheduleTime=row['schedule_time'],
                                priceMinor=row['price_minor'], value=money(row['price_minor']),

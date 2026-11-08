@@ -51,10 +51,11 @@ def run_http_benchmark(encoder, group_fixtures, repeats=5):
     with tempfile.TemporaryDirectory(prefix='grouppay-http-evaluation-') as directory:
         # Explicit config selects only this temporary database. These guards also
         # catch future accidental dotenv loading or network access in the route.
-        with patch('server.load_env', side_effect=AssertionError('Dotenv access is forbidden during evaluation.')), \
+        with patch('app.config.load_env', side_effect=AssertionError('Dotenv access is forbidden during evaluation.')), \
              patch('urllib.request.urlopen', side_effect=AssertionError('Network access is forbidden during evaluation.')):
             app = create_app(dict(DATABASE_URL='sqlite:///' + (Path(directory) / 'evaluation.db').as_posix(),
-                APP_ENV='development', APP_ORIGIN='http://localhost', COOKIE_SECURE=False, TESTING=True),
+                APP_ENV='development', APP_ORIGIN='http://localhost', COOKIE_SECURE=False, TESTING=True,
+                RECEIPT_VISION_PROVIDER='local_qwen', OLLAMA_API_KEY='', OLLAMA_VISION_MODEL=''),
                 paypal=NoPayments(), encoder=encoder)
             store = app.extensions['store']
             try:
@@ -95,17 +96,30 @@ def run_http_benchmark(encoder, group_fixtures, repeats=5):
                     if response.status_code != 200 or not isinstance(payload, dict):
                         raise AssertionError('The recommendation benchmark route did not succeed.')
                     ranking = payload.get('recommendation', {})
-                    if ranking.get('mode') != 'semantic':
+                    if ranking.get('mode') != 'semantic' or ranking.get('inferenceExecuted') is not True:
                         raise AssertionError('The recommendation benchmark did not execute real semantic ranking.')
                     ids = [offer['id'] for offer in payload['matches']]
                     if len(ids) != len(set(ids)) or set(ids) != case['expected']:
                         raise AssertionError('The benchmark returned an unexpected or missing catalog candidate.')
+                    if (ranking.get('eligibleCount') != len(ids)
+                            or ranking.get('catalogDocumentCount') != len(ids)
+                            or not ranking.get('tasteTextCount')
+                            or ranking.get('appliedOrder') != ids):
+                        raise AssertionError('The route did not expose internally consistent inference evidence.')
                     serialized = json.dumps(payload)
                     if any(key in serialized for key in ('preferenceScore', 'similarities', 'embeddings', 'memberScores')):
                         raise AssertionError('The recommendation response exposed private score details.')
                     return dict(passIndex=pass_index, caseID=case['id'], elapsedMs=elapsed,
                                 serverElapsedMs=ranking['elapsedMs'], mode=ranking['mode'],
                                 objective=ranking['objective'], decision=ranking['decision'],
+                                inferenceExecuted=ranking['inferenceExecuted'],
+                                inferenceMs=ranking['inferenceMs'],
+                                eligibleCount=ranking['eligibleCount'],
+                                catalogDocumentCount=ranking['catalogDocumentCount'],
+                                tasteTextCount=ranking['tasteTextCount'],
+                                rulesOrder=ranking['rulesOrder'], appliedOrder=ranking['appliedOrder'],
+                                appliedOrderChanged=ranking['appliedOrderChanged'],
+                                semanticChangedRulesOrder=ranking['semanticChangedRulesOrder'],
                                 firstListedID=ids[0])
 
                 warmup = [request(case, -1) for case in cases]

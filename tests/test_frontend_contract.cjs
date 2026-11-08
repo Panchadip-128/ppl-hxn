@@ -31,6 +31,7 @@ assert.equal(helpers.futureOffers([
 ], 'excursion').length, 1, 'Future sessions lacking inventory are distinguished from expired catalog dates');
 
 let context;
+let redirectTarget = null, privateGroupFailure = false;
 const sdk = {}, events = {}, requests = [], failures = [];
 class Element {
   constructor(tag = 'div') {
@@ -79,10 +80,13 @@ const document = {head, hidden: false,
   addEventListener(name, callback) { (events[name] ||= []).push(callback); }};
 context = vm.createContext({console: {log: console.log, warn: console.warn, error(...args) { failures.push(args); }}, document, URL, URLSearchParams, Intl, Date, Map, Set, JSON, Number, String, Promise, Blob,
   setInterval() { return 1; }, clearInterval() {}, setTimeout, clearTimeout, navigator: {}, confirm() { return true; }, print() {}, alert() {},
-  location: {search: '', origin: 'http://localhost'}, history: {replaceState() {}},
+  location: {search: '', origin: 'http://localhost', replace(target) { redirectTarget = target; }}, history: {replaceState() {}},
   fetch: async (url, options) => {
     const body = options.body ? JSON.parse(options.body) : undefined; requests.push({url, body, options});
     let result;
+    if (privateGroupFailure && url.startsWith('/api/groups/lost')) {
+      return {ok: false, status: 404, json: async () => ({error: 'GROUP_NOT_FOUND'})};
+    }
     if (url === '/api/config') result = {participantID: 'owner', csrfToken: 'csrf', configured: true, clientID: 'public-client', planningMode: 'local', workshops: [], bookings: []};
     else if (url === '/api/groups/g2') result = {...group, id: 'g2', name: 'Another group'};
     else if (url === '/api/groups/g2/booking') result = {hasBooking: false};
@@ -98,7 +102,7 @@ context = vm.createContext({console: {log: console.log, warn: console.warn, erro
     else if (url.endsWith('/preferences/confirm')) { preference = {...preference, confirmedConstraints: body.confirmedConstraints, isConfirmed: true, guidance: {label: 'Local preference helper', summary: `Confirmed budget $${(body.confirmedConstraints.budget_cents / 100).toFixed(2)}`}}; room.confirmedCount = 2; result = preference; }
     else if (url.endsWith('/rescue')) result = {summary: 'An explicit change to your own budget can unlock this plan.', proposals: [{...offer, ownShareValue: '20.00', changes: [{label: 'Raise your ceiling from $18.99 to $20.00.'}], constraints: {...preference.confirmedConstraints, budget_cents: 2000}}]};
     else if (url.includes('/plan?')) result = {allConfirmed: true, matches, conflicts: matches.length ? [] : [{reason: 'No offer fits the confirmed constraints.'}], explanation: 'Actual catalog result.'};
-    else if (url.endsWith('/recommendations')) result = {allConfirmed: true, matches: matches.map((item) => ({...item, recommendationLabel: 'Balanced pick'})), conflicts: [], explanation: recommendationMode === 'semantic' ? 'Verified eligible plans, ordered by modeled compromise.' : 'Add and confirm descriptive tastes before AI comparison.', recommendation: {mode: recommendationMode, model: 'test-model', elapsedMs: 25, descriptiveMemberCount: 2, memberCount: 2}};
+    else if (url.endsWith('/recommendations')) result = {allConfirmed: true, matches: matches.map((item) => ({...item, recommendationLabel: 'Balanced pick'})), conflicts: [], explanation: recommendationMode === 'semantic' ? 'Verified eligible plans, ordered by modeled compromise.' : 'Add and confirm descriptive tastes before AI comparison.', recommendation: {mode: recommendationMode, model: 'test-model', revision: '1234567890', elapsedMs: 25, inferenceMs: 12, inferenceExecuted: recommendationMode === 'semantic', eligibleCount: matches.length, catalogDocumentCount: matches.length, tasteTextCount: 2, descriptiveMemberCount: 2, memberCount: 2, appliedOrderChanged: true, semanticChangedRulesOrder: true}};
     else if (url.endsWith('/messages')) { room.messages.push({id: 'm2', isSelf: true, text: body.text}); result = room.messages.at(-1); }
     else if (url.endsWith('/quote')) {
       if (rejectNextQuote) { rejectNextQuote = false; return {ok: false, status: 409, json: async () => ({error: 'SEAT_UNAVAILABLE'})}; }
@@ -203,7 +207,7 @@ const text = (element) => [element.textContent, ...element.children.map(text)].j
   await event('room-preference-review', 'submit');
   assert.equal(comparisonRequests(), beforeDraft + 1, 'Confirmation resumes the requested AI comparison automatically');
   assert.match(elements.get('room-ai-ranking-note').textContent, /test-model/);
-  assert.match(elements.get('room-ai-ranking-note').textContent, /not measured satisfaction/);
+  assert.match(elements.get('room-ai-ranking-note').textContent, /not an accuracy or satisfaction score/);
   assert.equal(comparisonRequests(), 2, 'AI ranking runs on the explicit request and its confirmed continuation, never polling');
   matches = []; recommendationMode = 'no_matches';
   await event('room-ai-recommend');
@@ -217,7 +221,8 @@ const text = (element) => [element.textContent, ...element.children.map(text)].j
   const beforeRescueConfirmation = comparisonRequests();
   await event('room-preference-review', 'submit');
   assert.equal(comparisonRequests(), beforeRescueConfirmation + 1);
-  assert.match(elements.get('room-ai-ranking-note').textContent, /Local model:/, 'The single comparison action returns a truthful AI status');
+  assert.match(elements.get('room-ai-ranking-note').textContent, /Local BGE executed:.*changed the displayed order.*not an accuracy/i,
+    'The UI distinguishes executed semantic reranking from accuracy claims');
   const card = elements.get('room-plan-results').children.find((item) => item.tagName === 'article');
   await event(card.children.find((item) => item.tagName === 'button'));
   assert.equal(elements.get('interactive-seat-map').children.length, 2);
@@ -273,6 +278,11 @@ const text = (element) => [element.textContent, ...element.children.map(text)].j
   assert.equal(elements.get('room-rescue-card').hidden, true, 'Preference rescue is hidden when the catalog has no future options');
   assert.equal(elements.get('room-catalog-status').children.filter((item) => item.tagName === 'button').length, 0,
     'No dead-end category switch is offered');
+  privateGroupFailure = true;
+  await context.selectGroup('lost'); await settle();
+  assert.equal(redirectTarget, '/', 'Lost private group access returns to the base URL');
+  assert.doesNotMatch(elements.get('collab-status-feed').textContent, /GROUP_NOT_FOUND/);
+  assert.doesNotMatch(elements.get('app-toast').textContent, /GROUP_NOT_FOUND/);
   assert.ok(requests.filter((request) => request.body).every((request) => request.options.headers['X-CSRF-Token'] === 'csrf'));
   assert.ok(!requests.some((request) => /simulate-authorizations|preflight-reserve|add-demo|\/api\/demo\//.test(request.url)));
   assert.deepEqual(failures, []);

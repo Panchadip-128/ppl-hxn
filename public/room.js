@@ -72,6 +72,13 @@
     if (error) $('room-next-action').textContent = text;
     if (error) root.GroupPayToast?.(text, 'error');
   };
+  const reportError = (error, suffix = '') => {
+    if (error?.privateGroupAccessLost) {
+      state.group = null;
+      return;
+    }
+    status(`${error?.message || 'The request failed.'}${suffix}`, true);
+  };
   const button = (text, action, cls = 'btn btn-secondary') => {
     const item = node('button', text, cls); item.type = 'button';
     item.addEventListener('click', action); return item;
@@ -79,7 +86,7 @@
   async function run(task) {
     if (locked()) return;
     state.busy = true; state.error = null; state.sequence++; renderControls();
-    try { await task(); } catch (error) { status(error.message, true); }
+    try { await task(); } catch (error) { reportError(error); }
     finally { state.busy = false; renderControls(); }
   }
   async function closeButtons() {
@@ -288,6 +295,7 @@
         ? `Local AI (${response.retrieval.model || 'BGE'})` : 'Basic local lookup (AI unavailable)';
       $('room-agent-status').textContent = `${engine} · Answered from this room's saved details.`;
     } catch (error) {
+      if (error.privateGroupAccessLost) throw error;
       if (current(id, epoch)) {
         dropPending();
         state.agentHistory.push({role: 'assistant', text: 'I could not finish this request right now. Please retry.'});
@@ -429,7 +437,7 @@
     $('room-payment-detail').textContent = [booking?.error, booking?.message, booking?.operationInProgress ? 'An operation is in progress. Wait before rechecking.' : '', booking?.myShare?.orderID ? `Your saved order: ${booking.myShare.orderID}` : '', !state.options.getConfig().configured && booking?.hasBooking ? 'PayPal Sandbox is not configured on this server, so approval cannot start.' : ''].filter(Boolean).join(' · ');
     if (booking?.myShare?.consentGiven) $('room-consent').checked = true;
     renderProgress(); renderBrief(); renderCatalogStatus(); countdown();
-    if (!state.approval) renderPayPal().catch((error) => status(error.message, true));
+    if (!state.approval) renderPayPal().catch(reportError);
   }
   function countdown() {
     const booking = state.booking;
@@ -512,7 +520,7 @@
     const parent = $('room-plan-results'); parent.replaceChildren();
     const ranking = plan.recommendation;
     $('room-ai-ranking-note').textContent = ranking ? ranking.mode === 'semantic' ?
-      `Local model: ${ranking.model}. Ranked in ${Math.round(ranking.elapsedMs)} ms on this server; ${ranking.descriptiveMemberCount}/${ranking.memberCount} members supplied tastes. This is a snapshot, not measured satisfaction. Rerun after group edits.` :
+      `Local BGE executed: ${ranking.catalogDocumentCount} eligible catalog descriptions x ${ranking.tasteTextCount} confirmed taste inputs in ${Math.round(ranking.inferenceMs)} ms. ${ranking.appliedOrderChanged ? 'It changed the displayed order from the verified schedule order.' : ranking.semanticChangedRulesOrder ? 'It produced a different semantic view; this neutral view keeps schedule order.' : 'It evaluated every option and kept the same order.'} Model ${ranking.model} at ${String(ranking.revision || '').slice(0, 8)}. This is retrieval evidence, not an accuracy or satisfaction score.` :
       ranking.mode === 'no_matches' ? 'No eligible plan to compare yet. Your confirmed limits are still in effect. See what blocks each plan below.' :
       `AI ranking did not run (${readable(ranking.mode)}). ${plan.explanation}` : '';
     const actions = $('room-ai-actions'); actions.replaceChildren();
@@ -542,7 +550,7 @@
     if (plan.needsMembers) { parent.append(node('p', 'Invite at least one friend first. Prepare your own preferences while they join.')); return; }
     if (!plan.allConfirmed) { parent.append(node('p', `Waiting for confirmed preferences from: ${(plan.unconfirmedMembers || []).join(', ')}.`)); return; }
     const summary = ranking?.mode === 'needs_clarification' ? 'Review the taste descriptions before AI comparison.' :
-      plan.matches?.length ? ranking?.mode === 'semantic' ? `AI compared ${plan.matches.length} verified experiences.` :
+      plan.matches?.length ? ranking?.mode === 'semantic' ? `Local BGE compared ${plan.matches.length} verified experiences after deterministic eligibility checks.` :
         `${plan.matches.length} verified matches. ${ranking ? 'These have not been ranked by AI.' : ''}` :
         'No compatible experience yet. Review the blockers below or discuss another plan.';
     parent.append(node('p', summary));
@@ -608,6 +616,7 @@
     $('room-ai-actions').replaceChildren(); renderControls();
     try { return await findMatches(true); }
     catch (error) {
+      if (error.privateGroupAccessLost) throw error;
       if (current(id, epoch)) {
         state.plan = null;
         state.offer = state.quote = null; state.seats = [];
@@ -702,7 +711,7 @@
         try {
           await state.options.api(path(id, '/contributions/authorize'), {});
           if (current(id, epoch)) status('Your authorization is verified. Tickets remain locked until all group captures complete.');
-        } catch (error) { if (current(id, epoch)) status(`${error.message} Recheck your saved order.`, true); }
+        } catch (error) { if (current(id, epoch)) reportError(error, ' Recheck your saved order.'); }
         finally { await done(); }
       },
       async onCancel() { if (current(id, epoch)) status('Approval closed. Your saved order remains available for recheck.'); await done(); },
@@ -835,7 +844,7 @@
       if (current(gid, epoch)) status('Saved status updated. Review the next action and any pending payment outcomes.');
     }));
     $('room-refresh').addEventListener('click', () => run(refresh));
-    $('room-consent').addEventListener('change', () => renderPayPal().catch((error) => status(error.message, true)));
+    $('room-consent').addEventListener('change', () => renderPayPal().catch(reportError));
     $('copy-invite-btn').addEventListener('click', () => run(async () => {
       try {
         await navigator.clipboard.writeText(state.group.inviteURL);
@@ -866,7 +875,7 @@
     $('close-validator-modal-btn').addEventListener('click', () => { $('qr-validator-modal').hidden = true; $('btn-scan-validator').focus(); });
     if (!state.poll) {
       state.poll = setInterval(() => {
-        if (state.group && !locked() && !document.hidden && options.isVisible()) refresh().catch((error) => status(error.message, true));
+        if (state.group && !locked() && !document.hidden && options.isVisible()) refresh().catch(reportError);
       }, 5000);
       setInterval(() => { if (state.group && !document.hidden) countdown(); }, 1000);
     }

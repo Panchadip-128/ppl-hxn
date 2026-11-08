@@ -59,7 +59,7 @@ From ppl-hxn, install requirements-ai.txt and prepare the BGE model, then restar
 ..\.venv\Scripts\python.exe -m pip install -r requirements-ai.txt
 ..\.venv\Scripts\python.exe -B -m app.recommendations.assets prepare --model bge
 ..\.venv\Scripts\python.exe -B -m app.recommendations.assets prepare --model minilm
-..\.venv\Scripts\python.exe -B evaluation/benchmark_recommendations.py --model all --repeats 5 --http
+..\.venv\Scripts\python.exe -B -m evaluation.benchmark_recommendations --model all --repeats 5 --http
 ```
 
 The benchmark reads only synthetic fixtures and local model assets. It does not load dotenv or the active database. The HTTP section uses a temporary SQLite app, real session/CSRF routes and an adapter that forbids all financial provider access. Every temporary table is compared before/after recommendation calls.

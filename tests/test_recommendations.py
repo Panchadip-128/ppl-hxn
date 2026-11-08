@@ -153,6 +153,8 @@ class RecommendationTests(unittest.TestCase):
         encoder = FixtureEncoder()
         result = self.recommend(encoder)
         self.assertEqual([offer['id'] for offer in result['matches']], ['movie-silent-echoes-sun'])
+        self.assertEqual(result['recommendation']['eligibleCount'], 1)
+        self.assertFalse(result['recommendation']['inferenceExecuted'])
         self.assertFalse(encoder.inputs)  # One verified choice needs no semantic comparison.
         with self.store.engine.begin() as connection:
             connection.execute(update(catalog_resources).where(
@@ -361,6 +363,14 @@ class RecommendationTests(unittest.TestCase):
         self.assertEqual(average['recommendation']['objective'], 'average')
         self.assertEqual(default['recommendation']['objective'], 'compromise')
         self.assertEqual([offer['id'] for offer in default['matches']], compromise_ids)
+        evidence = compromise['recommendation']
+        self.assertTrue(evidence['inferenceExecuted'])
+        self.assertTrue(evidence['appliedOrderChanged'])
+        self.assertTrue(evidence['semanticChangedRulesOrder'])
+        self.assertEqual(evidence['catalogDocumentCount'], 3)
+        self.assertEqual(evidence['tasteTextCount'], 3)
+        self.assertEqual(evidence['appliedOrder'], compromise_ids)
+        self.assertNotEqual(evidence['rulesOrder'], compromise_ids)
 
     def test_partial_taste_coverage_is_explicit_and_never_declares_satisfaction(self):
         self.confirm(self.member, [])

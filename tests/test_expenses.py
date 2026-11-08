@@ -1,4 +1,5 @@
 """HTTP-level tests for the informal expense-split feature: never PayPal-authoritative."""
+import base64
 import io
 import json
 import tempfile
@@ -7,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app import create_app
+from app.expenses.ocr import ReceiptScanError, ReceiptScanner
 from test_workshop_slice import FakePayPal
 
 
@@ -14,7 +16,8 @@ class ExpensesTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.config = dict(DATABASE_URL='sqlite:///' + (Path(self.directory.name) / 'test.db').as_posix(),
-                           APP_ORIGIN='http://localhost', COOKIE_SECURE=False, APP_ENV='development', TESTING=True)
+                           APP_ORIGIN='http://localhost', COOKIE_SECURE=False, APP_ENV='development', TESTING=True,
+                           RECEIPT_VISION_PROVIDER='local_qwen', OLLAMA_API_KEY='', OLLAMA_VISION_MODEL='')
         self.app = create_app(self.config, paypal=FakePayPal())
         self.owner = self.app.test_client()
         self.member = self.app.test_client()
@@ -311,7 +314,7 @@ class ExpensesTests(unittest.TestCase):
 
         with patch('app.expenses.ocr.ReceiptScanner._infer', return_value=fake_body):
             response = self.owner.post('/api/expenses/scan-receipt',
-                data={'receipt': (io.BytesIO(b'fake-bytes'), 'receipt.jpg', 'image/jpeg')},
+                data={'receipt': (io.BytesIO(b'\xff\xd8\xfffake-bytes'), 'receipt.jpg', 'image/jpeg')},
                 content_type='multipart/form-data',
                 headers={'Origin': 'http://localhost', 'X-CSRF-Token': self.csrf[self.owner]})
         self.assertEqual(response.status_code, 200)
@@ -323,11 +326,10 @@ class ExpensesTests(unittest.TestCase):
         self.assertEqual(body['fields']['total'], 42.5)
 
     def test_scan_unavailable_model_surfaces_as_503(self):
-        from app.expenses.ocr import ReceiptScanError
         with patch('app.expenses.ocr.ReceiptScanner._infer',
                    side_effect=ReceiptScanError('LOCAL_MODEL_UNAVAILABLE', 503)):
             response = self.owner.post('/api/expenses/scan-receipt',
-                data={'receipt': (io.BytesIO(b'fake-bytes'), 'receipt.jpg', 'image/jpeg')},
+                data={'receipt': (io.BytesIO(b'\xff\xd8\xfffake-bytes'), 'receipt.jpg', 'image/jpeg')},
                 content_type='multipart/form-data',
                 headers={'Origin': 'http://localhost', 'X-CSRF-Token': self.csrf[self.owner]})
         self.assertEqual(response.status_code, 503)
@@ -343,12 +345,66 @@ class ExpensesTests(unittest.TestCase):
         with patch('app.expenses.ocr.ReceiptScanner._infer',
                    return_value='{"merchant":"Cafe","total":null}'):
             response = self.owner.post('/api/expenses/scan-receipt',
-                data={'receipt': (io.BytesIO(b'fake-bytes'), 'receipt.jpg', 'image/jpeg')},
+                data={'receipt': (io.BytesIO(b'\xff\xd8\xfffake-bytes'), 'receipt.jpg', 'image/jpeg')},
                 content_type='multipart/form-data',
                 headers={'Origin': 'http://localhost', 'X-CSRF-Token': self.csrf[self.owner]})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json['parsed'])
         self.assertIsNone(response.json['fields'])
+
+    def test_ollama_cloud_uses_only_server_configuration_and_returns_preview(self):
+        scanner = ReceiptScanner(provider='ollama_cloud', ollama_api_key='server-secret',
+                                 ollama_model='vision-model')
+        response_body = json.dumps({'message': {'content': json.dumps({
+            'merchant': 'Cafe', 'date': '2026-11-06', 'currency': 'usd',
+            'total': 12.5, 'category': 'food', 'items': []})}}).encode()
+        with patch('app.expenses.ocr.urllib.request.urlopen', return_value=io.BytesIO(response_body)) as network:
+            preview = scanner.scan(b'\xff\xd8\xffreceipt', 'image/jpeg')
+        self.assertTrue(preview['parsed'])
+        self.assertEqual(preview['fields']['total'], 12.5)
+        request = network.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://ollama.com/api/chat')
+        self.assertEqual(request.get_header('Authorization'), 'Bearer server-secret')
+        sent = json.loads(request.data)
+        self.assertEqual(sent['model'], 'vision-model')
+        self.assertEqual(base64.b64decode(sent['messages'][0]['images'][0]), b'\xff\xd8\xffreceipt')
+        status = scanner.status()
+        self.assertTrue(status['available'])
+        self.assertNotIn('server-secret', json.dumps(status))
+
+    def test_ollama_cloud_missing_server_key_never_calls_network(self):
+        scanner = ReceiptScanner(provider='ollama_cloud', ollama_model='vision-model')
+        self.assertFalse(scanner.status()['available'])
+        with patch('app.expenses.ocr.urllib.request.urlopen') as network:
+            with self.assertRaisesRegex(ReceiptScanError, 'RECEIPT_MODEL_NOT_CONFIGURED'):
+                scanner.scan(b'\x89PNG\r\n\x1a\nreceipt', 'image/png')
+        network.assert_not_called()
+
+    def test_factory_wires_operator_ollama_config_without_exposing_the_key(self):
+        config = dict(self.config,
+            DATABASE_URL='sqlite:///' + (Path(self.directory.name) / 'ollama.db').as_posix(),
+            RECEIPT_VISION_PROVIDER='ollama_cloud', OLLAMA_API_KEY='operator-only-secret',
+            OLLAMA_VISION_MODEL='vision-model')
+        cloud_app = create_app(config, paypal=FakePayPal())
+        try:
+            client = cloud_app.test_client()
+            client.get('/api/config')
+            status = client.get('/api/expenses/scan-status')
+            self.assertEqual(status.status_code, 200)
+            self.assertEqual(status.json['provider'], 'ollama_cloud')
+            self.assertTrue(status.json['available'])
+            self.assertNotIn('operator-only-secret', status.get_data(as_text=True))
+            self.assertNotIn('operator-only-secret', client.get('/api/config').get_data(as_text=True))
+        finally:
+            cloud_app.extensions['store'].engine.dispose()
+
+    def test_receipt_content_type_must_match_image_signature_before_inference(self):
+        scanner = ReceiptScanner(provider='ollama_cloud', ollama_api_key='server-secret',
+                                 ollama_model='vision-model')
+        with patch('app.expenses.ocr.urllib.request.urlopen') as network:
+            with self.assertRaisesRegex(ReceiptScanError, 'INVALID_RECEIPT_IMAGE'):
+                scanner.scan(b'not-an-image', 'image/jpeg')
+        network.assert_not_called()
 
     # ------------------------------------------------------------- auth boundaries
     def test_missing_session_is_unauthorized(self):

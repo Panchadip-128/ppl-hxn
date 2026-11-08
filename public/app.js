@@ -173,6 +173,9 @@ async function api(path, body) {
   try { data = await response.json(); }
   catch { throw new Error('Server response could not be parsed.'); }
   if (!response.ok) {
+    const privateGroupPath = /^\/api\/groups(?:\/|$)/.test(path);
+    const privateContextLost = privateGroupPath && (response.status === 401 ||
+      (response.status === 404 && data.error === 'GROUP_NOT_FOUND'));
     const messages = {
       PREFERENCES_NOT_CONFIRMED: 'Each member must confirm their own preferences before choosing a group experience.',
       RECOMMENDATION_STALE: 'The group or available catalog changed while AI was ranking. Request a fresh recommendation; nothing was reserved.',
@@ -192,6 +195,8 @@ async function api(path, body) {
     const err = new Error(data.message || messages[data.error] || data.exactFailureCause || data.error || 'The request failed.');
     err.status = response.status;
     err.payload = data;
+    err.privateGroupAccessLost = privateContextLost;
+    if (privateContextLost) returnToBaseFromPrivateGroup();
     throw err;
   }
   return data;
@@ -207,6 +212,16 @@ function escapeHtml(str) {
 function setCollabStatus(text) {
   const el = $('collab-status-feed');
   if (el) el.textContent = text;
+}
+
+let returningToBase = false;
+function returnToBaseFromPrivateGroup() {
+  if (returningToBase) return;
+  returningToBase = true;
+  activeGroup = null;
+  const dot = $('active-group-dot');
+  if (dot) dot.style.display = 'none';
+  window.location.replace('/');
 }
 
 // -------------------------------------------------------------
@@ -411,20 +426,30 @@ async function selectGroup(groupId, preferredOffer = null) {
     activeGroup = group;
     $('active-group-dot').style.display = 'inline-block';
     switchTab('collab');
-  } catch (error) { setCollabStatus(`Could not open group: ${error.message}`); }
+  } catch (error) {
+    if (error.privateGroupAccessLost) return;
+    setCollabStatus(`Could not open group: ${error.message}`);
+  }
 }
 
 async function openSavedGroup(groupId) {
-  const group = await api(`/api/groups/${encodeURIComponent(groupId)}`);
-  if (group.merchantCheckout && window.GroupPayMerchant) {
-    await window.GroupPayMerchant.openGroup(groupId);
-    return;
+  try {
+    const group = await api(`/api/groups/${encodeURIComponent(groupId)}`);
+    if (group.merchantCheckout && window.GroupPayMerchant) {
+      await window.GroupPayMerchant.openGroup(groupId);
+      return;
+    }
+    await selectGroup(groupId);
+  } catch (error) {
+    if (error.privateGroupAccessLost) return;
+    throw error;
   }
-  await selectGroup(groupId);
 }
 
 function renderActiveGroupRoom() {
-  window.GroupPayRoom.refresh().catch((error) => setCollabStatus(error.message));
+  window.GroupPayRoom.refresh().catch((error) => {
+    if (!error.privateGroupAccessLost) setCollabStatus(error.message);
+  });
 }
 
 async function runProbe(probeKey) {
@@ -969,6 +994,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
   } catch (err) {
+    if (err.privateGroupAccessLost) return;
     console.error('App initialization error:', err);
     setCollabStatus(`Could not connect: ${err.message}. Reload to retry.`);
     $('app-notice').hidden = false; $('app-notice').textContent = `Could not connect: ${err.message}. Reload to retry.`;

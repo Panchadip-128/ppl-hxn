@@ -106,7 +106,8 @@ class Recommendations:
         metadata = dict(algorithm=ALGORITHM, mode='rules', descriptiveMemberCount=0,
                         memberCount=member_count, model=None, revision=None,
                         objective=objective,
-                        scope='confirmed_soft_preferences', availabilityReserved=False)
+                        scope='confirmed_soft_preferences', availabilityReserved=False,
+                        eligibleCount=0, inferenceExecuted=False)
         def finish(mode, explanation, matches=None):
             metadata['mode'] = mode
             metadata['elapsedMs'] = round((time.perf_counter() - started) * 1000, 3)
@@ -126,6 +127,9 @@ class Recommendations:
         base['matches'] = [{key: value for key, value in offer.items() if key != 'preferenceScore'}
                            for offer in result['matches']]
         eligible = sorted(base['matches'], key=lambda offer: (offer['scheduleTime'], offer['id']))
+        rules_order = [offer['id'] for offer in eligible]
+        metadata['eligibleCount'] = len(eligible)
+        metadata['rulesOrder'] = rules_order
         if not eligible:
             explanation = ('No upcoming experiences are listed in this category. Check another category or ask the organizer about new dates.'
                            if not snapshot['offers'] else
@@ -178,6 +182,7 @@ class Recommendations:
             recheck()
             return finish('unavailable', 'Semantic ranking could not run. These are verified rules-based matches; your saved preferences were not changed.')
         metadata['inferenceMs'] = round((time.perf_counter() - inference_started) * 1000, 3)
+        metadata['inferenceExecuted'] = True
         # Inference never holds a DB connection. Recheck roster order, canonical
         # preferences, current time, trusted offer documents, prices and resources.
         latest = recheck()
@@ -189,6 +194,11 @@ class Recommendations:
         metadata['decision'] = 'shared_semantic_top' if shared_top else 'tradeoff_to_discuss'
         metadata['views'] = dict(compromise=ids, average=average_ids)
         ordered = average_ids if objective == 'average' else ids if objective == 'compromise' else [offer['id'] for offer in eligible]
+        metadata.update(
+            catalogDocumentCount=len(documents), tasteTextCount=len(tags), appliedOrder=ordered,
+            appliedOrderChanged=ordered != rules_order,
+            semanticChangedRulesOrder=ids != rules_order or average_ids != rules_order,
+        )
         ranked = []
         for offer_id in ordered:
             labels = []
@@ -199,8 +209,11 @@ class Recommendations:
             ranked.append(dict(by_id[offer_id], recommendationLabel=' / '.join(labels) or 'Verified alternative'))
         metadata.update(model=status['model'], revision=status['revision'])
         agreement = 'One option is the top semantic match for every member who supplied tastes.' if shared_top else 'No option is the top semantic match for every member who supplied tastes; compare the tradeoff together.'
+        effect = ('The displayed order changed from the verified schedule order.' if metadata['appliedOrderChanged'] else
+                  'The displayed order stayed the same; the model still evaluated every eligible option.' if objective != 'compare' else
+                  'Both semantic views were computed while the neutral comparison keeps schedule order.')
         policy = {'compare': 'Showing both ranking lenses in schedule order, without choosing for your group.',
                   'compromise': 'Ordered by the smallest worst modeled compromise.',
                   'average': 'Ordered by highest average modeled fit.'}[objective]
-        return finish('semantic', f'{len(ranked)} plans satisfy every confirmed constraint. {policy} {metadata["descriptiveMemberCount"]} of {member_count} members supplied tastes. {agreement} This is not an agreement or satisfaction score; places are not reserved.', ranked)
+        return finish('semantic', f'{len(ranked)} plans satisfy every confirmed constraint. {policy} {effect} {metadata["descriptiveMemberCount"]} of {member_count} members supplied tastes. {agreement} This is not an agreement or satisfaction score; places are not reserved.', ranked)
 

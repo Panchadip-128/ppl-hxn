@@ -46,7 +46,7 @@ class ReceiptVisionTests(unittest.TestCase):
     def test_nonfinite_amount_does_not_become_receipt_total(self):
         scanner = ReceiptScanner()
         with patch.object(scanner, '_infer', return_value='{"total": NaN}'):
-            result = scanner.scan(b'fixture', 'image/jpeg')
+            result = scanner.scan(b'\xff\xd8\xfffixture', 'image/jpeg')
         self.assertFalse(result['parsed'])
         self.assertIsNone(result['fields'])
 
