@@ -40,7 +40,10 @@
     label.append(select);
     together.append(el('h2', 'Pay together with PayPal'), el('p', 'Invite friends. Everyone approves only their own exact share in PayPal.'), label,
       button('Create group checkout', () => start(Number(select.value))));
-    box.append(direct, together);
+    const planning = el('article', undefined, 'merchant-payment-option');
+    planning.append(el('h2', 'Plan & check fit first'), el('p', 'Need to compare budgets, schedules, and tastes with local BGE AI before reserving? Start a planning room with this experience as your starting point.'),
+      button('Start a planning room →', async () => { state.options.planOfferInRoom?.(state.offer); }, 'btn btn-outline'));
+    box.append(direct, together, planning);
   }
   async function start(payerCount) {
     state.group = await request('/api/merchant-checkouts', {offerID: state.offer.id, payerCount});
@@ -65,8 +68,16 @@
     const choice = $('merchant-choice'); choice.replaceChildren();
     const box = el('article', undefined, 'merchant-payment-option');
     box.append(el('h2', 'Group checkout'), el('p', `${state.group.memberCount} of ${checkout.targetMemberCount} payers have joined.`));
-    if (state.group.role === 'organizer' && state.group.memberCount < checkout.targetMemberCount) box.append(button('Copy payment invite', copyInvite, 'btn btn-outline'));
-    if (state.group.role === 'organizer' && checkout.readyToFreeze) box.append(button('Hold order & show exact shares', freeze));
+    if (state.group.members?.length) {
+      const rosterRow = el('div', undefined, 'roster-avatar-row');
+      for (const m of state.group.members) rosterRow.append(el('span', m.alias, 'room-member-pill'));
+      box.append(rosterRow);
+    }
+    const actionRow = el('div', undefined, 'button-row');
+    if (state.group.role === 'organizer' && state.group.memberCount < checkout.targetMemberCount) actionRow.append(button('Copy payment invite', copyInvite, 'btn btn-outline'));
+    if (state.group.role === 'organizer' && checkout.readyToFreeze) actionRow.append(button('Hold order & show exact shares', freeze));
+    actionRow.append(button('Refresh status', refresh, 'btn btn-outline'));
+    box.append(actionRow);
     if (state.group.role !== 'organizer') box.append(el('p', 'The organizer will hold the merchant order once every intended payer has joined.', 'fine'));
     choice.append(box);
     detail('The roster is not frozen yet. Joining or leaving cannot change an already-held order.');
@@ -110,20 +121,38 @@
     if (booking.state === 'CONFIRMED') {
       const confirmed = el('article', undefined, 'merchant-confirmation');
       confirmed.append(el('h2', 'Order confirmed'), el('p', 'Every required PayPal capture is verified. The fictional merchant order is confirmed.'));
+      if (booking.myShare) {
+        confirmed.append(el('p', `Assigned place: ${booking.myShare.assignedResource || 'Reserved'} · Paid share: ${booking.myShare.shareValue} ${booking.currency}${booking.myShare.captureID ? ` · Capture: ${booking.myShare.captureID}` : ''}`, 'fine'));
+      }
+      if (state.options.openRoom && state.group?.id) {
+        confirmed.append(button('View private ticket in Group Room →', async () => { await state.options.openRoom(state.group.id); }, 'btn btn-primary'));
+      }
       choice.append(confirmed);
       detail('Group-payment receipt: all required captures completed.'); return;
     }
     const own = booking.myShare, card = el('article', undefined, 'merchant-payment-option');
-    card.append(el('h2', 'Your payment'), el('p', `Your exact share: ${own.shareValue} ${booking.currency}.`),
+    card.append(el('h2', 'Your payment'), el('p', `Your exact share: ${own.shareValue} ${booking.currency}${own.assignedResource ? ` · ${own.assignedResource}` : ''}.`),
       el('p', 'No other payer can approve or pay this amount for you.', 'fine'));
+    if (booking.rosterProgress?.length) {
+      const rosterBox = el('div', undefined, 'member-auth-list');
+      for (const item of booking.rosterProgress) {
+        rosterBox.append(el('p', `${item.alias}: ${String(item.state || '').replaceAll('_', ' ').toLowerCase()}${item.shareValue ? ` · ${item.shareValue} ${booking.currency}` : ''}`, 'fine'));
+      }
+      card.append(rosterBox);
+    }
     const consent = el('input'); consent.type = 'checkbox'; consent.id = 'merchant-consent';
+    if (own.consentGiven) consent.checked = true;
     const consentLabel = el('label', ' I agree to my displayed share and the cancellation terms.'); consentLabel.prepend(consent); card.append(consentLabel);
     const paypal = el('div'); paypal.id = 'merchant-paypal-buttons'; card.append(paypal);
     consent.addEventListener('change', () => renderPayPal(paypal, consent).catch(showError));
-    if (booking.state === 'FINALIZING' && state.group.role === 'organizer') card.append(button('Complete verified group payment', async () => { await request(`/api/groups/${encodeURIComponent(state.group.id)}/finalize`, {}); await refresh(); }));
-    if (own.orderID) card.append(button('Recheck saved payment', async () => { await request(`/api/groups/${encodeURIComponent(state.group.id)}/contributions/reconcile`, {}); await refresh(); }, 'btn btn-outline'));
+    const actionRow = el('div', undefined, 'button-row');
+    if (booking.state === 'FINALIZING' && state.group.role === 'organizer') actionRow.append(button('Complete verified group payment', async () => { await request(`/api/groups/${encodeURIComponent(state.group.id)}/finalize`, {}); await refresh(); }));
+    if ((booking.recoveryRequired || booking.state === 'RECOVERY_REQUIRED') && state.group.role === 'organizer') actionRow.append(button('Reconcile group recovery', async () => { await request(`/api/groups/${encodeURIComponent(state.group.id)}/recover`, {}); await refresh(); }, 'btn btn-outline'));
+    if (own.orderID) actionRow.append(button('Recheck saved payment', async () => { await request(`/api/groups/${encodeURIComponent(state.group.id)}/contributions/reconcile`, {}); await refresh(); }, 'btn btn-outline'));
+    actionRow.append(button('Refresh status', refresh, 'btn btn-outline'));
+    card.append(actionRow);
     choice.append(card);
-    detail(booking.state === 'FINALIZING' ? 'All authorizations are ready. The organizer can complete the capture pass.' : own.orderID ? 'Each payer must independently approve their displayed share. You can recheck this saved PayPal order if approval was interrupted.' : 'Check the consent box, then use PayPal to start your own approval.');
+    detail(booking.state === 'FINALIZING' ? 'All authorizations are ready. The organizer can complete the capture pass.' : (booking.recoveryRequired || booking.state === 'RECOVERY_REQUIRED') ? 'A payment outcome is unresolved. Keep this reservation and reconcile group recovery.' : own.orderID ? 'Each payer must independently approve their displayed share. You can recheck this saved PayPal order if approval was interrupted.' : 'Check the consent box, then use PayPal to start your own approval.');
   }
   function render() {
     state.options.show();
@@ -137,7 +166,15 @@
     else if (!state.booking?.hasBooking) renderWaiting(checkout);
     else renderPayment();
   }
-  function init(options) { state.options = options; $('merchant-back').addEventListener('click', () => options.showDiscover()); }
+  function init(options) {
+    state.options = options;
+    $('merchant-back').addEventListener('click', () => options.showDiscover());
+    root.setInterval?.(() => {
+      if (!document.hidden && !$('merchant-view')?.hidden && state.group && state.booking?.state !== 'CONFIRMED') {
+        refresh().catch(() => {});
+      }
+    }, 5000);
+  }
   function openOffer(offer) { state.offer = offer; state.group = null; state.booking = null; render(); }
   async function openGroup(groupId) { state.group = await request(`/api/groups/${encodeURIComponent(groupId)}`); rememberGroup(groupId); state.offer = state.group.merchantCheckout; state.booking = await request(`/api/groups/${encodeURIComponent(groupId)}/booking`); render(); }
   root.GroupPayMerchant = {init, openOffer, openGroup};

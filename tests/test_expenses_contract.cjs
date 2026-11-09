@@ -75,13 +75,40 @@ async function renderContract() {
     '/api/expenses/analytics': {analytics: {totalMinor: 0, splitCount: 0, byCategory: {}, byMonth: {}}},
     '/api/expenses/profile': {profile: {displayName: '', upiID: ''}},
   };
-  window.GroupPayExpenses.mount(container, {api: async (path) => responses[path]});
+  const handle = window.GroupPayExpenses.mount(container, {api: async (path) => responses[path]});
   await settle();
   assert.match(container.innerHTML, /Get ready for your first shared bill/);
   assert.match(container.innerHTML, /Next best action/);
   assert.match(container.innerHTML, /Add your first person/);
   assert.match(container.innerHTML, /Nothing is charged automatically/);
   assert.match(container.innerHTML, /What this tab does/);
+  assert.match(container.innerHTML, /ALL SETTLED/);
+
+  // Verify Subscriptions view & DUE card rendering
+  responses['/api/expenses/subscriptions'] = {
+    subscriptions: [{
+      id: 'sub-1', name: 'Youtube', monthlyAmountMinor: 65000, billingDay: 25,
+      currency: 'USD', hostName: 'You', upiID: 'you@upi',
+      participants: [{name: 'Aarya', whatsapp: ''}],
+    }],
+  };
+  await handle.refresh();
+  handle.navigate('subscriptions');
+  assert.match(container.innerHTML, /Subscriptions/);
+  assert.match(container.innerHTML, /Youtube/);
+  assert.match(container.innerHTML, /DUE/);
+  assert.match(container.innerHTML, /Remind first via WhatsApp/);
+
+  // Verify History view
+  handle.navigate('history');
+  assert.match(container.innerHTML, /Copy Audit Log/);
+  assert.match(container.innerHTML, /Total historical volume/);
+
+  // Verify Spend Analytics & Chart canvases
+  handle.navigate('analytics');
+  assert.match(container.innerHTML, /TOTAL TRACKED SPEND/);
+  assert.match(container.innerHTML, /exp-chart-category/);
+  assert.match(container.innerHTML, /exp-chart-monthly/);
 }
 
 renderContract().then(() => console.log('Expenses readiness contract passed.')).catch((error) => {

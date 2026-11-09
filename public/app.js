@@ -150,7 +150,7 @@ const DAG_NODE_INFO = {
   3: {title: 'Reserve the selection', badge: 'EXACT QUOTE', desc: 'Server prices and integer-cent shares determine the reservation. A hold is not a payment.', meta: 'Quote and freeze | Inventory ownership | Persistent reservation'},
   4: {title: 'Approve each hold', badge: 'BUYER APPROVAL', desc: 'Each participant approves their own order in PayPal before server authorization.', meta: 'SDK v5 AUTHORIZE | Participant ownership | Saved orders'},
   5: {title: 'Capture and recover', badge: 'SEQUENTIAL', desc: 'Validate all payment evidence before capture. Unknown and pending outcomes retain the reservation for reconciliation.', meta: 'Capture and recovery | Fenced operations | Durable outcomes'},
-  6: {title: 'Issue private tickets', badge: 'ALL CAPTURES COMPLETE', desc: 'All required validated completed captures unlock each participant?s own fictional ticket.', meta: 'Private ticket API | Owner checks | Persistent ticket'}
+  6: {title: 'Issue private tickets', badge: 'ALL CAPTURES COMPLETE', desc: 'All required validated completed captures unlock each participant\'s own fictional ticket.', meta: 'Private ticket API | Owner checks | Persistent ticket'}
 };
 
 // -------------------------------------------------------------
@@ -191,6 +191,14 @@ async function api(path, body) {
       INVALID_PREFERRED_DAYS: 'Use weekday names such as Friday, Saturday, separated by commas. Leave the field blank for any day.',
       INVALID_DATES: 'Use dates in YYYY-MM-DD format, separated by commas.',
       INVALID_TIME_WINDOW: 'Check your start and finish times. The earliest start cannot be later than the latest start.',
+      FRIEND_NAME_ALREADY_USED: 'You already saved a person with that name. Choose their existing card or enter a distinct name.',
+      DUPLICATE_SHARE_NAME: 'Each person in a split must have a distinct name.',
+      INVALID_PAYPAL_EMAIL: 'Enter a valid PayPal email address, or leave the optional field blank.',
+      LOCAL_MODEL_UNAVAILABLE: 'The local receipt vision model is not prepared on this server. Enter the bill details manually below.',
+      RECEIPT_MODEL_NOT_CONFIGURED: 'Receipt scanning is not configured on this server. Enter the bill details manually below.',
+      RECEIPT_IMAGE_TOO_LARGE: 'That receipt image is too large (max 6 MB). Choose a smaller photo or enter the bill manually.',
+      UNSUPPORTED_IMAGE_TYPE: 'Choose a JPEG, PNG, or WebP receipt image.',
+      INVALID_RECEIPT_IMAGE: 'The selected file could not be read as a valid receipt image. Enter the bill details manually.',
     };
     const err = new Error(data.message || messages[data.error] || data.exactFailureCause || data.error || 'The request failed.');
     err.status = response.status;
@@ -233,7 +241,10 @@ function setupTabs() {
   $('tab-collab')?.addEventListener('click', () => switchTab('collab'));
   $('tab-lab')?.addEventListener('click', () => switchTab('lab'));
   $('tab-workshop')?.addEventListener('click', () => switchTab('workshop'));
-  $('tab-expenses')?.addEventListener('click', () => switchTab('expenses'));
+  $('tab-expenses')?.addEventListener('click', () => switchTab('expenses', 'dashboard'));
+  $('tab-subscriptions')?.addEventListener('click', () => switchTab('expenses', 'subscriptions'));
+  $('tab-history')?.addEventListener('click', () => switchTab('expenses', 'history'));
+  $('tab-analytics')?.addEventListener('click', () => switchTab('expenses', 'analytics'));
 
   $('brand-home-link')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -242,34 +253,49 @@ function setupTabs() {
 
   $('btn-back-to-groups')?.addEventListener('click', () => switchTab('groups'));
   $('hero-create-group-btn')?.addEventListener('click', () => openCreateGroupModal());
+  $('hero-room-path-btn')?.addEventListener('click', () => openCreateGroupModal());
   $('hero-join-group-btn')?.addEventListener('click', () => openJoinGroupModal());
   $('groups-create-btn')?.addEventListener('click', () => openCreateGroupModal());
   $('groups-join-btn')?.addEventListener('click', () => openJoinGroupModal());
   $('hero-demo-btn')?.addEventListener('click', () => runShowcaseDemo('happy_path', 'movie'));
   $('hero-splits-btn')?.addEventListener('click', () => switchTab('expenses'));
+  $('header-auth-btn')?.addEventListener('click', () => openAuthModal());
+  $('sidebar-identity-btn')?.addEventListener('click', (e) => {
+    if (e.target.closest('#audio-toggle-btn')) return;
+    openAuthModal();
+  });
 }
 
-function switchTab(tab) {
+let pendingExpenseView = null;
+
+function switchTab(tab, expenseSubview = null) {
   currentTab = tab;
-  $('page-label').textContent = {discover: 'Discover', groups: 'My groups', collab: 'Group room', merchant: 'Merchant checkout', lab: 'Solo demo lab', workshop: 'Workshop checkout demo', expenses: 'Bills & splits'}[tab] || 'Discover';
+  if (expenseSubview) pendingExpenseView = expenseSubview;
+  const subLabels = {subscriptions: 'Subscriptions', history: 'Split History', analytics: 'Spend Analytics'};
+  $('page-label').textContent = (tab === 'expenses' && expenseSubview && subLabels[expenseSubview])
+    ? subLabels[expenseSubview]
+    : ({discover: 'Discover', groups: 'My groups', collab: 'Group room', merchant: 'Merchant checkout', lab: 'Solo demo lab', workshop: 'Workshop checkout demo', expenses: 'Bills & splits'}[tab] || 'Discover');
   SOUNDS.click();
 
   const tabs = ['discover', 'groups', 'collab', 'merchant', 'lab', 'workshop', 'expenses'];
   tabs.forEach((t) => {
     const btn = t === 'merchant' ? null : $(`tab-${t}`);
     const view = $(`${t}-view`);
-    const isActive = t === tab;
+    const isActive = t === tab && !(t === 'expenses' && expenseSubview && expenseSubview !== 'dashboard');
     if (btn) {
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-selected', String(isActive));
       if (isActive) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
     }
     if (view) {
-      view.hidden = !isActive;
-      if (isActive) view.classList.add('active');
+      view.hidden = !(t === tab);
+      if (t === tab) view.classList.add('active');
       else view.classList.remove('active');
     }
   });
+  $('tab-subscriptions')?.classList.toggle('active', tab === 'expenses' && expenseSubview === 'subscriptions');
+  $('tab-history')?.classList.toggle('active', tab === 'expenses' && expenseSubview === 'history');
+  $('tab-analytics')?.classList.toggle('active', tab === 'expenses' && expenseSubview === 'analytics');
 
   if (tab === 'discover') {
     renderCatalog();
@@ -294,9 +320,20 @@ function switchTab(tab) {
       if (!window.GroupPayExpenses?.mount) { loadExpensesModule(); return; }
       if (!expensesMounted) {
         expensesMounted = true;
-        expensesHandle = window.GroupPayExpenses.mount($('expenses-root'), {api, escapeHtml, getCsrfToken: () => config?.csrfToken || ''});
-      } else if (expensesHandle && typeof expensesHandle.refresh === 'function') {
-        expensesHandle.refresh();
+        expensesHandle = window.GroupPayExpenses.mount($('expenses-root'), {
+          api, escapeHtml, getCsrfToken: () => config?.csrfToken || '',
+          initialView: pendingExpenseView || 'dashboard',
+          onOpenGuide: () => $('show-guide-btn')?.click(),
+        });
+        pendingExpenseView = null;
+      } else if (expensesHandle) {
+        if (pendingExpenseView && typeof expensesHandle.navigate === 'function') {
+          expensesHandle.navigate(pendingExpenseView);
+          pendingExpenseView = null;
+        }
+        if (typeof expensesHandle.refresh === 'function') {
+          expensesHandle.refresh();
+        }
       }
     } catch (error) {
       expensesMounted = false;
@@ -477,12 +514,26 @@ function setupRoomActions() {
   $('close-inspector-modal-btn')?.addEventListener('click', () => { $('inspector-modal').hidden = true; });
   document.querySelectorAll('.btn-probe').forEach((item) => item.addEventListener('click', () => runProbe(item.dataset.probe)));
   for (let i = 1; i <= 6; i++) $(`dag-node-${i}`)?.addEventListener('click', () => handleDagNodeClick(i));
+  handleDagNodeClick(1);
 }
 
 function runShowcaseDemo(scenario = 'happy_path', domain = 'movie') {
   switchTab('lab');
   if (labDemo) labDemo.destroy();
-  labDemo = window.GroupPayDemo.mount($('judge-demo'), {offers: catalogOffers, scenario: scenario === 'chaos_failure' ? 'chaos' : domain});
+  const mode = scenario === 'chaos_failure' ? 'chaos' : domain;
+  labDemo = window.GroupPayDemo.mount($('judge-demo'), {offers: catalogOffers, scenario: mode});
+  for (const [id, active] of [
+    ['lab-run-happy-btn', mode === 'movie'],
+    ['lab-run-excursion-btn', mode === 'excursion'],
+    ['lab-run-chaos-btn', mode === 'chaos']
+  ]) {
+    const btn = $(id);
+    if (btn) {
+      btn.classList.toggle('btn-primary', active);
+      btn.classList.toggle('btn-outline', !active);
+      btn.setAttribute('aria-pressed', String(active));
+    }
+  }
   $('judge-demo').scrollIntoView({block: 'start', behavior: 'auto'});
   setCollabStatus('Solo rehearsal is isolated in browser memory. Your saved bookings are untouched.');
 }
@@ -510,6 +561,23 @@ function handleDagNodeClick(nodeId) {
 // MODALS: CREATE & JOIN GROUP
 // -------------------------------------------------------------
 function setupGroupModals() {
+  $('close-auth-modal-btn')?.addEventListener('click', () => { $('auth-modal').hidden = true; });
+  document.querySelectorAll('.auth-persona-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const alias = btn.dataset.persona;
+      saveParticipantAlias(alias);
+      $('auth-modal').hidden = true;
+    });
+  });
+  $('auth-alias-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const alias = $('auth-alias-input')?.value.trim();
+    if (alias) {
+      saveParticipantAlias(alias);
+      $('auth-modal').hidden = true;
+    }
+  });
+
   $('close-create-group-modal')?.addEventListener('click', () => { $('modal-create-group').hidden = true; });
   $('cancel-create-group-btn')?.addEventListener('click', () => { $('modal-create-group').hidden = true; });
 
@@ -562,6 +630,52 @@ function setupGroupModals() {
       showToast(`Could not join group: ${err.message}`, 'error');
     }
   });
+}
+
+function getSavedAlias() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem('grouppay_alias');
+  } catch {}
+  return null;
+}
+
+function setSavedAlias(value) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) window.localStorage.setItem('grouppay_alias', value);
+  } catch {}
+}
+
+function openAuthModal() {
+  SOUNDS.click();
+  $('auth-modal').hidden = false;
+  const current = getSavedAlias() || 'Guest Participant';
+  $('auth-current-alias').textContent = current;
+  $('auth-alias-input').value = current;
+  $('auth-current-id').textContent = `Participant ID: ${config?.participantID || 'anonymous'}`;
+  $('auth-alias-input').focus();
+}
+
+function updateIdentityDisplay(alias) {
+  const name = alias || getSavedAlias() || 'Guest Participant';
+  const initial = (name.trim().charAt(0) || 'Y').toUpperCase();
+  if ($('sidebar-identity-avatar')) $('sidebar-identity-avatar').textContent = initial;
+  if ($('sidebar-identity-name')) $('sidebar-identity-name').textContent = name;
+  if ($('sidebar-identity-sub')) $('sidebar-identity-sub').textContent = config?.participantID ? `ID: ${config.participantID.slice(0, 8)}…` : 'Private session';
+  if ($('header-auth-label')) $('header-auth-label').textContent = name;
+}
+
+async function saveParticipantAlias(alias) {
+  if (!alias) return;
+  setSavedAlias(alias);
+  updateIdentityDisplay(alias);
+  showToast(`Signed in as ${alias}`);
+  // If user is inside an active group room, also persist to backend
+  if (activeGroup?.id) {
+    try {
+      await api(`/api/groups/${activeGroup.id}/profile`, {alias, shareProgress: true});
+      window.GroupPayRoom.refresh().catch(() => {});
+    } catch {}
+  }
 }
 
 function openCreateGroupModal(preselectOfferId = null) {
@@ -656,7 +770,9 @@ function renderStatus() {
     if (booking?.lessonURL) $('lesson').href = booking.lessonURL;
   }
   if ($('recheck')) $('recheck').hidden = !booking || !!booking.lessonURL;
-  if ($('complete-payment')) $('complete-payment').hidden = !booking || booking.attemptState !== 'APPROVED' || !booking.orderID || !!booking.lessonURL;
+  const showComplete = Boolean(booking && booking.attemptState === 'APPROVED' && booking.orderID && !booking.lessonURL);
+  if ($('post-approval-recovery')) $('post-approval-recovery').hidden = !showComplete;
+  if ($('complete-payment')) $('complete-payment').hidden = !showComplete;
   if (booking) {
     for (const [id, value] of Object.entries({
       'booking-id': booking.id, 'booking-state': booking.bookingState,
@@ -924,6 +1040,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
   });
 
+  // Theme Toggle: Defaults to dark mode, supports distinct Pearlescent Lavender Light Mode
+  function applyTheme(theme) {
+    const active = theme === 'light' ? 'light' : 'dark';
+    if (document.documentElement) {
+      document.documentElement.dataset.theme = active;
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try { window.localStorage.setItem('grouppay_theme', active); } catch (_) {}
+    }
+    const icon = $('theme-icon');
+    const label = $('theme-label');
+    if (icon) icon.textContent = active === 'dark' ? '🌙' : '☀️';
+    if (label) label.textContent = active === 'dark' ? 'Dark' : 'Light';
+  }
+
+  let savedTheme = 'dark';
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem('grouppay_theme');
+      if (stored === 'light' || stored === 'dark') savedTheme = stored;
+    } catch (_) {}
+  }
+  applyTheme(savedTheme);
+
+  $('theme-toggle-btn')?.addEventListener('click', () => {
+    const currentMode = document.documentElement?.dataset?.theme || 'dark';
+    const nextTheme = currentMode === 'dark' ? 'light' : 'dark';
+    applyTheme(nextTheme);
+    SOUNDS.click();
+    setCollabStatus(`Theme switched to ${nextTheme === 'dark' ? 'Dark' : 'Light'} mode.`);
+  });
+
   // Audio Toggle
   $('audio-toggle-btn')?.addEventListener('click', () => {
     soundEnabled = !soundEnabled;
@@ -937,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     config = await api('/api/config');
-    if (window.GroupPayMerchant) window.GroupPayMerchant.init({api, getConfig: () => config, show: () => switchTab('merchant'), showDiscover: () => switchTab('discover')});
+    if (window.GroupPayMerchant) window.GroupPayMerchant.init({api, getConfig: () => config, show: () => switchTab('merchant'), showDiscover: () => switchTab('discover'), openRoom: (groupId) => selectGroup(groupId), planOfferInRoom: (offer) => openCreateGroupModal(offer?.id)});
     window.GroupPayDiscover.init({onPlan: (offer) => {
       if (!window.GroupPayMerchant) throw new Error('Merchant checkout could not load. Reload and try again.');
       window.GroupPayMerchant.openOffer(offer);
@@ -981,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load dynamic catalog & groups
     await fetchCatalogOffers();
     await fetchMyGroups();
+    updateIdentityDisplay();
 
     // Check URL parameters for direct join or group link
     const params = new URLSearchParams(window.location.search);

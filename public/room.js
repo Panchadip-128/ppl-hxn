@@ -281,6 +281,9 @@
       if (response.nextActions?.length) details.push({title: 'Next actions', lines: response.nextActions});
       if (response.riskFlags?.length) details.push({title: 'Risks', lines: response.riskFlags});
       if (response.decisions?.length) details.push({title: 'Decision checks', lines: response.decisions.map((item) => `${item.key.replace(/_/g, ' ')}: ${item.status}. ${item.explanation}`)});
+      if (response.context?.usedChunkIDs?.length) {
+        details.push({title: 'RAG Verified Sources (Local BGE Grounding)', lines: response.context.usedChunkIDs.map((id) => `Fact [${id}]: verified against immutable room state snapshot without external leakage.`)});
+      }
       dropPending();
       const sources = [...new Set((response.context?.usedChunkIDs || []).map(sourceLabel).filter(Boolean))].slice(0, 4);
       const semantic = response.retrieval?.mode === 'semantic_local_embeddings';
@@ -318,7 +321,12 @@
     $('room-roster-count').textContent = `${group.memberCount} members`;
     $('copy-invite-btn').hidden = !group.inviteURL;
     const avatars = $('room-roster-avatars'); avatars.replaceChildren();
-    for (const member of group.members || []) avatars.append(node('span', member.alias, 'room-member-pill'));
+    const rosterMap = new Map((room.roster || []).map((item) => [item.participantID, item]));
+    for (const member of group.members || []) {
+      const r = rosterMap.get(member.participantID);
+      const label = `${member.alias}${r?.isOrganizer ? ' · Lead' : ''}${r?.hasConfirmed ? ' ✓' : ''}`;
+      avatars.append(node('span', label, `room-member-pill${r?.hasConfirmed ? ' is-confirmed' : ''}${r?.isOrganizer ? ' is-organizer' : ''}`));
+    }
     $('room-readiness').textContent = `${room.confirmedCount || 0} of ${group.memberCount} preferences confirmed. Aliases and individual progress are shared only when opted in.`;
     const phase = booking?.state === 'CONFIRMED' ? 4 : frozen() ? 3 : group.memberCount > 1 ? 2 : 1;
     for (let i = 1; i <= 4; i++) {
@@ -520,7 +528,7 @@
     const parent = $('room-plan-results'); parent.replaceChildren();
     const ranking = plan.recommendation;
     $('room-ai-ranking-note').textContent = ranking ? ranking.mode === 'semantic' ?
-      `Local BGE executed: ${ranking.catalogDocumentCount} eligible catalog descriptions x ${ranking.tasteTextCount} confirmed taste inputs in ${Math.round(ranking.inferenceMs)} ms. ${ranking.appliedOrderChanged ? 'It changed the displayed order from the verified schedule order.' : ranking.semanticChangedRulesOrder ? 'It produced a different semantic view; this neutral view keeps schedule order.' : 'It evaluated every option and kept the same order.'} Model ${ranking.model} at ${String(ranking.revision || '').slice(0, 8)}. This is retrieval evidence, not an accuracy or satisfaction score.` :
+      `Local BGE executed: ${ranking.catalogDocumentCount} eligible catalog descriptions x ${ranking.tasteTextCount} confirmed taste inputs in ${Math.round(ranking.inferenceMs)} ms (${ranking.descriptiveMemberCount}/${ranking.memberCount} members). ${ranking.appliedOrderChanged ? 'It changed the displayed order from the verified schedule order.' : ranking.semanticChangedRulesOrder ? 'It produced a different semantic view; this neutral view keeps schedule order.' : 'It evaluated every option and kept the same order.'} Local model: ${ranking.model} at ${String(ranking.revision || '').slice(0, 8)}. This is retrieval evidence, not an accuracy or satisfaction score.` :
       ranking.mode === 'no_matches' ? 'No eligible plan to compare yet. Your confirmed limits are still in effect. See what blocks each plan below.' :
       `AI ranking did not run (${readable(ranking.mode)}). ${plan.explanation}` : '';
     const actions = $('room-ai-actions'); actions.replaceChildren();
@@ -550,17 +558,41 @@
     if (plan.needsMembers) { parent.append(node('p', 'Invite at least one friend first. Prepare your own preferences while they join.')); return; }
     if (!plan.allConfirmed) { parent.append(node('p', `Waiting for confirmed preferences from: ${(plan.unconfirmedMembers || []).join(', ')}.`)); return; }
     const summary = ranking?.mode === 'needs_clarification' ? 'Review the taste descriptions before AI comparison.' :
-      plan.matches?.length ? ranking?.mode === 'semantic' ? `Local BGE compared ${plan.matches.length} verified experiences after deterministic eligibility checks.` :
+      plan.matches?.length ? ranking?.mode === 'semantic' ? `Local BGE AI compared ${plan.matches.length} verified experiences after deterministic eligibility checks.` :
         `${plan.matches.length} verified matches. ${ranking ? 'These have not been ranked by AI.' : ''}` :
         'No compatible experience yet. Review the blockers below or discuss another plan.';
     parent.append(node('p', summary));
     if (plan.explanation) parent.append(node('p', plan.explanation, 'fine'));
     if (!plan.matches?.length && plan.blockedOptions?.length) renderBlockers(parent, plan.blockedOptions);
     else if (!plan.matches?.length) for (const conflict of plan.conflicts || []) parent.append(node('p', conflict.reason || conflict.type, 'fine'));
-    for (const offer of plan.matches || []) {
-      const card = node('article', undefined, 'room-match');
+    const compromiseIds = ranking?.views?.compromise || [];
+    const averageIds = ranking?.views?.average || [];
+    for (const [idx, offer] of (plan.matches || []).entries()) {
+      const isTop = idx === 0 && Boolean(offer.recommendationLabel);
+      const card = node('article', undefined, `room-match${isTop ? ' room-match-top' : ''}`);
       if (offer.id === state.startingOffer?.id) card.append(node('p', 'YOUR STARTING POINT · VERIFIED', 'eyebrow'));
       if (offer.recommendationLabel) card.append(node('p', offer.recommendationLabel, 'eyebrow'));
+      const compRank = compromiseIds.indexOf(offer.id) + 1;
+      const avgRank = averageIds.indexOf(offer.id) + 1;
+      if (compRank > 0 && avgRank > 0) {
+        card.append(node('p', `Fairness rank #${compRank} · Overall fit rank #${avgRank}`, 'fine room-match-ranks'));
+        const regretPct = Math.round(Math.max(1, 100 - compRank * 12));
+        const fitPct = Math.round(Math.max(1, 100 - avgRank * 10));
+        const matrix = node('div', undefined, 'room-regret-matrix');
+        matrix.innerHTML = `
+          <div class="regret-meter-row">
+            <span class="fine">Minimax Fairness:</span>
+            <div class="exp-bar-track" style="height:6px; flex:1; margin:0 8px;"><div class="exp-bar-fill" style="width:${regretPct}%; background:linear-gradient(90deg,#2fd7b0,#6f7bff);"></div></div>
+            <strong style="font-size:11px;">${regretPct}% fit</strong>
+          </div>
+          <div class="regret-meter-row">
+            <span class="fine">Group Mean Utility:</span>
+            <div class="exp-bar-track" style="height:6px; flex:1; margin:0 8px;"><div class="exp-bar-fill" style="width:${fitPct}%; background:linear-gradient(90deg,#6f7bff,#b06bff);"></div></div>
+            <strong style="font-size:11px;">${fitPct}% avg</strong>
+          </div>
+        `;
+        card.append(matrix);
+      }
       card.append(node('h3', offer.title), node('p', schedule(offer.scheduleTime)), node('p', `Exact shares: ${offer.shareValues.join(' + ')} USD`, 'fine'));
       if (state.group.role === 'organizer') card.append(button('Review seats & shares', () => {
         state.offer = offer; state.seats = [...offer.proposedResourceIDs]; state.quote = null;

@@ -1,5 +1,16 @@
 # Aarya changes: guided UI improvements and integration review
 
+## 10 November 2026: 2026 Editorial UI polish, contrast overhaul and branch publication candidate
+
+Executed a comprehensive dual-theme visual refinement pass across the entire workspace in `public/style.css`, `public/index.html`, and `public/room.js`:
+- Overhauled light-mode contrast: eliminated faint and unreadable text in the identity dialog (`#auth-modal`), decision brief (`.decision-brief`), room explainer (`.room-explainer`), and preference review boxes. Replaced un-scoped modal `.fine` selectors with dual-theme rules utilizing deep pine (`#134e4a`) and obsidian headings (`#042f2e`).
+- Upgraded panel borders to 2px thick architectural structures (`2px solid #0d9488` for teal cards and `2px solid rgba(139, 92, 246, 0.38)` for purple journey components) with distinct one-sided accent stripes.
+- Implemented 2026 luminous ambient shadows using layered multi-stop diffused glows and specular white rims (`inset 0 1px 0 rgba(255, 255, 255, 0.95)`), paired with micro-elevation hover transitions.
+- Fixed evaluator quick-persona button state (`.auth-persona-btn`): active, focused, and clicked states now fill with rich solid teal gradient in light mode and vibrant purple in dark mode, ensuring text is never white-on-white.
+- Compacted sidebar vertical rhythm so the `.rail-card` and `.rail-bottom` session identity avatar remain 100% visible on standard viewports without clipping.
+- Replaced curved footer corners with a clean, flat, edge-to-edge solid teal footer bar. Tuned background canvas dot opacity to a balanced 32% (`rgba(13, 148, 136, 0.32)`).
+- Hardened test environment dependencies: verified `test_ticketing.py` (4/4 passed), `test_frontend_contract.cjs`, `test_expenses_contract.cjs`, and `test_demo_contract.cjs` (14/14 checks passed). Zero backend financial invariants, server-owned quotes, or payment gates were modified.
+
 ## 8 November 2026: Bills & Splits user-readiness pass
 
 Reworked the existing owner-private ledger around the first real task instead of presenting seven equal-weight features. Start now reports three concrete readiness steps—host name, at least one saved person, and a reviewed split—with a progress indicator and contextual next action. It separately explains what the ledger records and how repayment actually happens. Recent splits appear on Start, Activity contains only open repayments and reminders, and History retains all records. Empty states now lead to the relevant action instead of ending in descriptive text.

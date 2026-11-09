@@ -297,6 +297,7 @@
           const row = make('div', undefined, 'demo-match');
           row.append(make('strong', `${candidate.title}${candidate.id === state.selected ? ' · selected' : ''}`),
             make('p', `${candidate.shares.map(money).join(' + ')} · ${candidate.blockers.length ? `Over budget for ${candidate.blockers.join(', ')}` : `Keyword overlap for ${candidate.coverage} of 3 people`}`, 'demo-note'));
+          if (candidate.matching?.length) row.append(make('p', candidate.matching.join(' · '), 'demo-note'));
           if (!candidate.blockers.length) row.append(button(candidate.id === state.selected ? 'Selected for review' : 'Select this plan', {type: 'SELECT', id: candidate.id}, candidate.id === state.selected));
           booking.append(row);
         }

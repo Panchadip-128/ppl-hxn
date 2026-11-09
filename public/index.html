@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#17233c"><title>GroupPay - good plans, together</title>
@@ -7,19 +7,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"></noscript>
-    <link rel="stylesheet" href="/style.css">
-    <script src="/discovery.js" defer>
+    <link rel="stylesheet" href="/style.css?v=2026.25">
+    <script src="/discovery.js?v=2026.25" defer>
     </script>
-    <script src="/guide.js" defer>
+    <script src="/guide.js?v=2026.25" defer>
     </script>
-    <script src="/demo.js" defer>
+    <script src="/demo.js?v=2026.25" defer>
     </script>
-    <script src="/room.js" defer>
+    <script src="/room.js?v=2026.25" defer>
     </script>
-    <script src="/merchant.js" defer>
-    <script src="/expenses.js" defer>
+    <script src="/merchant.js?v=2026.25" defer>
     </script>
-    <script src="/app.js" defer>
+    <script src="/expenses.js?v=2026.25" defer>
+    </script>
+    <script src="/app.js?v=2026.25" defer>
     </script>
   </head>
   <body>
@@ -32,6 +33,11 @@
         <button id="tab-groups" type="button" class="tab-btn"><span class="nav-icon">&#9707;</span> My groups <span id="my-groups-count" class="nav-count">0</span></button>
         <button id="tab-collab" type="button" class="tab-btn"><span class="nav-icon">&#9678;</span> Group room <i id="active-group-dot" style="display:none"></i></button>
         <button id="tab-expenses" type="button" class="tab-btn"><span class="nav-icon">&#8942;</span> Bills &amp; splits</button>
+        <button id="tab-subscriptions" type="button" class="tab-btn tab-btn-sub"><span class="nav-icon">&#9744;</span> Subscriptions <span class="nav-badge-due">DUE</span></button>
+        <div class="sidebar-quick-links" aria-label="Ledger insights">
+          <button id="tab-history" type="button" class="sidebar-quick-link">History</button>
+          <button id="tab-analytics" type="button" class="sidebar-quick-link">Analytics</button>
+        </div>
       </nav>
       <div class="rail-divider">
       </div>
@@ -43,8 +49,8 @@
         <p>A shared plan without one friend fronting the bill.</p>
         <button id="rail-guide" type="button">How it works <span>&#8594;</span></button>
       </div>
-      <div class="rail-bottom"><span class="identity-avatar">Y</span>
-        <div><strong>Your browser identity</strong><small>Private session on this device</small>
+      <div class="rail-bottom" id="sidebar-identity-btn" role="button" tabindex="0" title="Click to view or switch your test identity"><span class="identity-avatar" id="sidebar-identity-avatar">Y</span>
+        <div><strong id="sidebar-identity-name">Your browser identity</strong><small id="sidebar-identity-sub">Session on this device</small>
         </div>
         <button id="audio-toggle-btn" class="sound-toggle" aria-label="Toggle interface sounds" type="button"><span id="audio-icon-on" style="display:none">&#9835;</span><span id="audio-icon-off">&#9834;</span></button>
       </div>
@@ -53,7 +59,7 @@
       <header class="workspace-header">
         <div><span class="breadcrumb">Your next shared story</span><span class="breadcrumb-dot">/</span><strong id="page-label">Discover</strong>
         </div>
-        <div class="header-actions"><span id="mode" class="connection-pill">Sandbox prototype</span><button id="show-guide-btn" class="btn btn-quiet" type="button">Walk me through <span>&#8599;</span></button>
+        <div class="header-actions"><span id="mode" class="connection-pill">Sandbox prototype</span><button id="theme-toggle-btn" class="btn btn-quiet" type="button" aria-label="Toggle dark/light theme" title="Toggle dark or light theme"><span id="theme-icon">&#127769;</span> <span id="theme-label">Dark</span></button><button id="header-auth-btn" class="btn btn-quiet" type="button"><span id="header-auth-dot">●</span> <span id="header-auth-label">Sign in / Identity</span></button><button id="show-guide-btn" class="btn btn-quiet" type="button">Walk me through <span>&#8599;</span></button>
         </div>
       </header>
       <p id="app-notice" class="app-notice" role="alert" hidden>
@@ -107,8 +113,9 @@
           </div>
         </section>
         <section class="home-paths" aria-label="Choose what to do">
-          <div><strong>See the journey first</strong><p>Try three fictional friends, preference matching, shared selection and simulated payment steps.</p><button id="hero-demo-btn" class="btn btn-outline" type="button">Try the guided demo &rarr;</button></div>
-          <div><strong>Already paid a bill?</strong><p>Splits tracks contacts, receipts and repayments. It is a personal ledger; it does not run PayPal checkout.</p><button id="hero-splits-btn" class="btn btn-outline" type="button">Open Splits &rarr;</button></div>
+          <div><span class="eyebrow">SHARED PLANNING &amp; CHECKOUT</span><strong>Start a group planning room</strong><p>Confirm private budgets and tastes, compare with server-local BGE AI, pick adjacent places, and approve individual shares in PayPal.</p><button id="hero-room-path-btn" class="btn btn-outline" type="button">Create a planning room &rarr;</button></div>
+          <div><span class="eyebrow">ISOLATED SIMULATION</span><strong>See the journey first</strong><p>Try three fictional friends, preference matching, shared selection and simulated payment steps in browser memory.</p><button id="hero-demo-btn" class="btn btn-outline" type="button">Try the guided demo &rarr;</button></div>
+          <div><span class="eyebrow">PERSONAL LEDGER</span><strong>Already paid a bill?</strong><p>Splits tracks contacts, receipts and repayments. It is a personal ledger; it does not run PayPal checkout.</p><button id="hero-splits-btn" class="btn btn-outline" type="button">Open Splits &rarr;</button></div>
         </section>
         <section class="catalog-search-card" aria-labelledby="catalog-search-title">
           <div class="catalog-search-heading"><span class="ai-symbol" aria-hidden="true">&#8981;</span>
@@ -569,8 +576,8 @@
               <label for="create-group-name">Group Name</label>
               <input type="text" id="create-group-name" class="form-input" placeholder="e.g. Friday IMAX Squad, Tahoe Hikers" required maxlength="80">
             </div>
-            <div class="form-group" hidden>
-              <label for="create-group-offer-select">Discovery starting point</label>
+            <div class="form-group">
+              <label for="create-group-offer-select">Discovery starting point (optional)</label>
               <select id="create-group-offer-select" class="form-input">
                 <option value="">Decide together in group chat</option>
               </select>
@@ -608,6 +615,52 @@
               <button type="submit" class="btn btn-primary">Join Group</button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+    <!-- MODAL: AUTHENTICATION & PARTICIPANT IDENTITY -->
+    <div id="auth-modal" class="modal-backdrop" hidden>
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="split-modal-title">
+            <span class="badge badge-gold">SESSION IDENTITY &amp; ACCESS</span>
+            <h2>Sign in / Participant Identity</h2>
+          </div>
+          <button id="close-auth-modal-btn" type="button" class="modal-close-btn" aria-label="Close identity dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="fine" style="margin-bottom:14px;">
+            In GroupPay, each participant retains an isolated browser session with signed CSRF protection. To evaluate multi-party coordination on one device, you can set your active persona or simulate joining from a new device.
+          </p>
+          <div class="auth-session-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <small class="fine" style="text-transform:uppercase; letter-spacing:1px; font-weight:700; color:#5a66e8;">Current Session</small>
+                <div style="font-weight:700; font-size:16px;" id="auth-current-alias">Anonymous Participant</div>
+                <code class="fine" id="auth-current-id" style="font-size:11px; color:#68769c;">Session: loading…</code>
+              </div>
+              <span class="badge badge-success" style="font-size:11px;">ACTIVE</span>
+            </div>
+          </div>
+          <form id="auth-alias-form" style="margin-bottom:20px;">
+            <div class="form-group">
+              <label for="auth-alias-input">Your Display Name</label>
+              <input type="text" id="auth-alias-input" class="form-input" placeholder="e.g. Alice (Lead Organizer), Bob, Charlie" maxlength="60">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Save Identity</button>
+          </form>
+          <div style="border-top:1px solid #e2e7f3; padding-top:14px;">
+            <p class="eyebrow" style="margin-bottom:8px;">EVALUATOR QUICK-PERSONAS</p>
+            <p class="fine" style="margin-bottom:10px;">Select a standard evaluator profile to test multi-participant room dynamics:</p>
+            <div class="button-row" style="margin-bottom:14px;">
+              <button type="button" class="btn btn-outline btn-sm auth-persona-btn" data-persona="Alice" data-role="Lead Organizer">Alice (Organizer)</button>
+              <button type="button" class="btn btn-outline btn-sm auth-persona-btn" data-persona="Bob" data-role="Member">Bob (Member)</button>
+              <button type="button" class="btn btn-outline btn-sm auth-persona-btn" data-persona="Charlie" data-role="Member">Charlie (Member)</button>
+            </div>
+            <p class="fine" style="margin-top:12px; line-height:1.5;">
+              <strong>Payment Security Guarantee:</strong> Buyer credentials belong strictly in PayPal's encrypted popup. This session stores no passwords or banking tokens.
+            </p>
+          </div>
         </div>
       </div>
     </div>
