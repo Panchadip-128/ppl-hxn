@@ -271,9 +271,14 @@ html[data-theme="light"] .btn-secondary {
   border-color:#dce1ea;
 }
 html[data-theme="light"] .btn-outline:hover,
-html[data-theme="light"] .btn-secondary:hover {
-  background:#f5f6fd;
-  border-color:#b9c2f2;
+html[data-theme="light"] .btn-outline:focus,
+html[data-theme="light"] .btn-outline:active,
+html[data-theme="light"] .btn-secondary:hover,
+html[data-theme="light"] .btn-secondary:focus,
+html[data-theme="light"] .btn-secondary:active {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+  border-color: #0f766e;
+  color: #ffffff;
 }
 .btn-quiet {
   padding:9px 12px;
@@ -5785,9 +5790,12 @@ html[data-theme="light"] .btn-outline {
   font-weight: 650 !important;
   border-radius: 12px !important;
 }
-html[data-theme="light"] .btn-outline:hover:not(:disabled) {
-  background: rgba(139, 92, 246, 0.10) !important;
-  border-color: #7c3aed !important;
+html[data-theme="light"] .btn-outline:hover:not(:disabled),
+html[data-theme="light"] .btn-outline:focus,
+html[data-theme="light"] .btn-outline:active {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
 }
 html[data-theme="light"] .view-panel .section-header:not(.page-intro) .eyebrow {
   color: #7c3aed !important;
@@ -7017,10 +7025,12 @@ html[data-theme="light"] .auth-persona-btn {
   color: #0f172a !important;
   font-weight: 650 !important;
 }
-html[data-theme="light"] .auth-persona-btn:hover {
-  background: #f3ecfd !important;
-  border-color: #7c3aed !important;
-  color: #7c3aed !important;
+html[data-theme="light"] .auth-persona-btn:hover,
+html[data-theme="light"] .auth-persona-btn:focus,
+html[data-theme="light"] .auth-persona-btn:active {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
 }
 html[data-theme="light"] #auth-modal input {
   background: #fbf9ff !important;
@@ -8298,10 +8308,10 @@ html[data-theme="light"] .chip-preset:hover:not(:disabled) {
 html[data-theme="light"] body {
   background-color: #f2faf8 !important;
   background-image:
-    radial-gradient(rgba(13, 148, 136, 0.32) 1.5px, transparent 1.5px),
-    radial-gradient(1100px 600px at 90% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 60%),
-    radial-gradient(900px 500px at 10% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 55%),
-    radial-gradient(800px 500px at 50% 100%, rgba(13, 148, 136, 0.10) 0%, transparent 60%) !important;
+    radial-gradient(rgba(13, 148, 136, 0.20) 1.25px, transparent 1.25px),
+    radial-gradient(1100px 600px at 90% 0%, rgba(6, 182, 212, 0.12) 0%, transparent 60%),
+    radial-gradient(900px 500px at 10% 20%, rgba(139, 92, 246, 0.10) 0%, transparent 55%),
+    radial-gradient(800px 500px at 50% 100%, rgba(13, 148, 136, 0.08) 0%, transparent 60%) !important;
   background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100% !important;
   background-attachment: fixed !important;
   color: #042f2e !important;
@@ -9930,9 +9940,8 @@ html[data-theme="dark"] .room-ai-panel p,
 
 /* ============================================================
    9. HIGH-VISIBILITY BORDERS & DUAL-THEME BUTTON CLICK FIX
-   - Deeper, darker background dots (1.75px @ 44% opacity)
    - High-definition visible borders on .exp-modal-step & modal inputs
-   - Guaranteed high-contrast click/hover/focus on .auth-persona-btn
+   - Guaranteed high-contrast click/hover/focus across light and dark
    ============================================================ */
 
 /* High-Contrast Quick-Persona Buttons Across All States */
@@ -9943,7 +9952,7 @@ html[data-theme="light"] .button-row .auth-persona-btn {
   border: 1.5px solid #0d9488 !important;
   color: #042f2e !important;
   font-weight: 750 !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   padding: 8px 14px !important;
   box-shadow: 0 2px 6px rgba(13, 148, 136, 0.12) !important;
   transition: all 0.18s ease !important;
@@ -9952,7 +9961,11 @@ html[data-theme="light"] .button-row .auth-persona-btn {
 html[data-theme="light"] .auth-persona-btn:hover,
 html[data-theme="light"] .auth-persona-btn:focus,
 html[data-theme="light"] .auth-persona-btn:active,
-html[data-theme="light"] .auth-persona-btn:focus-visible {
+html[data-theme="light"] .auth-persona-btn:focus-visible,
+html[data-theme="light"] .auth-persona-btn.active,
+html[data-theme="light"] button.auth-persona-btn:hover,
+html[data-theme="light"] button.auth-persona-btn:focus,
+html[data-theme="light"] button.auth-persona-btn:active {
   background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
   border: 1.5px solid #0f766e !important;
   color: #ffffff !important;
@@ -9967,17 +9980,19 @@ html[data-theme="dark"] .auth-persona-btn,
   border: 1.5px solid rgba(168, 85, 247, 0.45) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   padding: 8px 14px !important;
 }
 
 html[data-theme="dark"] .auth-persona-btn:hover,
 html[data-theme="dark"] .auth-persona-btn:focus,
 html[data-theme="dark"] .auth-persona-btn:active,
+html[data-theme="dark"] .auth-persona-btn.active,
 :root:not([data-theme="light"]) .auth-persona-btn:hover,
 :root:not([data-theme="light"]) .auth-persona-btn:focus,
-:root:not([data-theme="light"]) .auth-persona-btn:active {
-  background: #a855f7 !important;
+:root:not([data-theme="light"]) .auth-persona-btn:active,
+:root:not([data-theme="light"]) .auth-persona-btn.active {
+  background: linear-gradient(135deg, #9333ea 0%, #a855f7 100%) !important;
   border-color: #c084fc !important;
   color: #ffffff !important;
   box-shadow: 0 4px 16px rgba(168, 85, 247, 0.45) !important;
@@ -9990,9 +10005,9 @@ html[data-theme="dark"] .auth-persona-btn:active,
    ------------------------------------------------------------ */
 html[data-theme="light"] .exp-modal-step {
   background: #ffffff !important;
-  border: 1.5px solid #0d9488 !important;
-  border-left: 5px solid #0f766e !important;
-  border-radius: 14px !important;
+  border: 2px solid rgba(13, 148, 136, 0.38) !important;
+  border-left: 6px solid #0f766e !important;
+  border-radius: 10px !important;
   padding: 20px 22px !important;
   margin-bottom: 16px !important;
   box-shadow: 0 4px 16px rgba(13, 148, 136, 0.10) !important;
@@ -10010,7 +10025,7 @@ html[data-theme="light"] .exp-modal-step-head p {
   font-weight: 500 !important;
 }
 
-/* Modal Inputs: High-definition visible borders */
+/* Modal Inputs: High-definition visible borders with reduced radius */
 html[data-theme="light"] .exp-modal-step input,
 html[data-theme="light"] .exp-form-row input,
 html[data-theme="light"] #exp-split-host,
@@ -10019,10 +10034,11 @@ html[data-theme="light"] #exp-split-paypal,
 html[data-theme="light"] .modal-body input.form-input,
 html[data-theme="light"] .modal-body input[type="text"],
 html[data-theme="light"] .modal-body input[type="email"],
-html[data-theme="light"] .modal-body input[type="number"] {
+html[data-theme="light"] .modal-body input[type="number"],
+html[data-theme="light"] input:not([type=checkbox]):not([type=radio]) {
   background: #ffffff !important;
-  border: 1.5px solid #0d9488 !important;
-  border-radius: 10px !important;
+  border: 2px solid rgba(13, 148, 136, 0.38) !important;
+  border-radius: 8px !important;
   padding: 10px 14px !important;
   color: #042f2e !important;
   font-weight: 650 !important;
@@ -10034,7 +10050,8 @@ html[data-theme="light"] .modal-body input[type="number"] {
 html[data-theme="light"] .exp-modal-step input:focus,
 html[data-theme="light"] #exp-split-host:focus,
 html[data-theme="light"] #exp-split-upi:focus,
-html[data-theme="light"] #exp-split-paypal:focus {
+html[data-theme="light"] #exp-split-paypal:focus,
+html[data-theme="light"] input:focus {
   border-color: #0f766e !important;
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.25) !important;
 }
@@ -10049,8 +10066,8 @@ html[data-theme="light"] .exp-modal-step label {
 html[data-theme="light"] .exp-boundary-note {
   background: #fefce8 !important;
   border: 1.5px solid #fcd34d !important;
-  border-left: 4.5px solid #f59e0b !important;
-  border-radius: 10px !important;
+  border-left: 5px solid #f59e0b !important;
+  border-radius: 8px !important;
   padding: 12px 14px !important;
   color: #78350f !important;
   font-size: 12.5px !important;
@@ -10068,36 +10085,40 @@ html[data-theme="light"] .modal-actions-row .btn-outline {
   border: 1.5px solid #0d9488 !important;
   color: #042f2e !important;
   font-weight: 750 !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
 }
 
-html[data-theme="light"] .modal-actions-row .btn-outline:hover {
-  background: rgba(13, 148, 136, 0.12) !important;
-  color: #042f2e !important;
+html[data-theme="light"] .modal-actions-row .btn-outline:hover,
+html[data-theme="light"] .modal-actions-row .btn-outline:focus,
+html[data-theme="light"] .modal-actions-row .btn-outline:active {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
 }
 
 /* Dark mode guarantees for modal steps */
 html[data-theme="dark"] .exp-modal-step,
 :root:not([data-theme="light"]) .exp-modal-step {
   background: rgba(22, 14, 46, 0.95) !important;
-  border: 1.5px solid rgba(168, 85, 247, 0.35) !important;
-  border-left: 4.5px solid #a855f7 !important;
-  border-radius: 14px !important;
+  border: 2px solid rgba(168, 85, 247, 0.40) !important;
+  border-left: 5px solid #a855f7 !important;
+  border-radius: 10px !important;
 }
 
 
 /* ============================================================
-   10. 2026 THICK ARCHITECTURAL BORDERS & LIGHT AMBIENT SHADOWS
+   10. 2026 ARCHITECTURAL BORDERS, REDUCED CORNERS & LIGHT SHADOWS
    - Substantial, high-definition 2px structural borders
-   - Luminous, airy multi-layer ambient shadows (no muddy dropouts)
-   - Refined micro-elevation hover interactions
+   - Sleek reduced corners (8px - 12px, eliminating bubbly 18-24px curves)
+   - Deep, high-visibility vertical separating line in journey rail
+   - Luminous, airy multi-layer ambient shadows
    ============================================================ */
 
-/* 1. Room Journey (Progress Step Rail) */
+/* 1. Room Journey (Progress Step Rail) - Reduced corner & DEEP separating line */
 html[data-theme="light"] .room-journey {
-  border: 2px solid rgba(139, 92, 246, 0.38) !important;
+  border: 2px solid rgba(139, 92, 246, 0.45) !important;
   border-top: 5px solid #7c3aed !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 6px rgba(124, 58, 237, 0.04),
@@ -10105,19 +10126,37 @@ html[data-theme="light"] .room-journey {
   transition: box-shadow 0.22s ease !important;
 }
 
+/* Deep, vivid separating vertical line */
 html[data-theme="light"] .room-journey li {
-  border-right: 2px solid rgba(124, 58, 237, 0.35) !important;
+  border-right: 2.5px solid #7c3aed !important;
 }
 
 html[data-theme="light"] .room-journey li:last-child {
   border-right: none !important;
 }
 
+html[data-theme="dark"] .room-journey,
+:root:not([data-theme="light"]) .room-journey {
+  border: 2px solid rgba(168, 85, 247, 0.45) !important;
+  border-top: 5px solid #a855f7 !important;
+  border-radius: 8px !important;
+}
+
+html[data-theme="dark"] .room-journey li,
+:root:not([data-theme="light"]) .room-journey li {
+  border-right: 2px solid rgba(168, 85, 247, 0.70) !important;
+}
+
+html[data-theme="dark"] .room-journey li:last-child,
+:root:not([data-theme="light"]) .room-journey li:last-child {
+  border-right: none !important;
+}
+
 /* 2. Room Next Move Action Card */
 html[data-theme="light"] .room-next-card {
-  border: 2px solid rgba(139, 92, 246, 0.38) !important;
+  border: 2px solid rgba(139, 92, 246, 0.42) !important;
   border-left: 6px solid #8b5cf6 !important;
-  border-radius: 14px !important;
+  border-radius: 10px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 8px rgba(124, 58, 237, 0.04),
@@ -10153,9 +10192,9 @@ html[data-theme="light"] .icon-button:hover {
 
 /* 3. Room Explainer Strip */
 html[data-theme="light"] .room-explainer {
-  border: 1.5px solid rgba(13, 148, 136, 0.32) !important;
+  border: 1.5px solid rgba(13, 148, 136, 0.35) !important;
   border-left: 5px solid #0d9488 !important;
-  border-radius: 0 12px 12px 0 !important;
+  border-radius: 0 8px 8px 0 !important;
   box-shadow: 0 3px 12px -2px rgba(13, 148, 136, 0.08) !important;
 }
 
@@ -10163,7 +10202,7 @@ html[data-theme="light"] .room-explainer {
 html[data-theme="light"] .decision-brief {
   border: 2px solid #0d9488 !important;
   border-left: 6px solid #0f766e !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 6px rgba(13, 148, 136, 0.04),
@@ -10174,7 +10213,7 @@ html[data-theme="light"] .decision-brief {
 html[data-theme="light"] .room-ai-panel {
   border: 2px solid #0d9488 !important;
   border-left: 6px solid #0f766e !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 8px rgba(13, 148, 136, 0.04),
@@ -10183,9 +10222,9 @@ html[data-theme="light"] .room-ai-panel {
 
 /* 6. Discover Home Paths 3-Card Grid */
 html[data-theme="light"] .home-paths>div {
-  border: 2px solid rgba(139, 92, 246, 0.36) !important;
+  border: 2px solid rgba(139, 92, 246, 0.38) !important;
   border-top: 5px solid #8b5cf6 !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 8px rgba(124, 58, 237, 0.04),
@@ -10201,26 +10240,87 @@ html[data-theme="light"] .home-paths>div:hover {
     0 16px 40px -4px rgba(124, 58, 237, 0.18) !important;
 }
 
-/* 7. Group Panels & Split Cards */
+/* 7. Overview Page Group Items & Cards (Image 3 Fix) */
+html[data-theme="light"] .group-item-card,
+html[data-theme="light"] .experience-card,
+html[data-theme="light"] .workshop-card {
+  border: 2px solid rgba(139, 92, 246, 0.38) !important;
+  border-left: 6px solid #8b5cf6 !important;
+  border-radius: 12px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 6px rgba(124, 58, 237, 0.04),
+    0 12px 30px -4px rgba(124, 58, 237, 0.12) !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html[data-theme="light"] .group-item-card:hover,
+html[data-theme="light"] .experience-card:hover,
+html[data-theme="light"] .workshop-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 4px 12px rgba(124, 58, 237, 0.08),
+    0 16px 40px -4px rgba(124, 58, 237, 0.18) !important;
+}
+
+/* 8. Group Panels & Split Cards */
 html[data-theme="light"] .room-panel,
 html[data-theme="light"] .exp-split-card,
 html[data-theme="light"] .exp-group-card,
 html[data-theme="light"] .card {
   border: 2px solid #0d9488 !important;
   border-left: 6px solid #0f766e !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 2px 6px rgba(13, 148, 136, 0.04),
     0 12px 32px -4px rgba(13, 148, 136, 0.14) !important;
 }
 
-/* 8. Expense Modal Step */
-html[data-theme="light"] .exp-modal-step {
-  border: 2px solid #0d9488 !important;
-  border-left: 6px solid #0f766e !important;
+/* 9. Page Intro / Overview Hero Banner & Modal Corners */
+.page-intro,
+.room-heading,
+html[data-theme="light"] .page-intro,
+html[data-theme="light"] .room-heading {
+  border-radius: 12px !important;
+}
+
+.gentle-note,
+html[data-theme="light"] .gentle-note {
+  border: 1.5px solid rgba(139, 92, 246, 0.35) !important;
+  border-left: 5px solid #7c3aed !important;
+  border-radius: 8px !important;
+}
+
+.modal-card,
+html[data-theme="light"] .modal-card,
+html[data-theme="light"] #auth-modal .modal-card,
+html[data-theme="light"] #ai-guardrails-modal .modal-card,
+html[data-theme="light"] .guide-dialog,
+html[data-theme="light"] .exp-neo-modal {
   border-radius: 14px !important;
-  box-shadow:
-    0 2px 6px rgba(13, 148, 136, 0.04),
-    0 8px 24px -4px rgba(13, 148, 136, 0.12) !important;
+}
+
+/* 10. Universal Dual-Theme Outline Button Click Guarantee */
+html[data-theme="light"] .btn-outline,
+html[data-theme="light"] .btn-secondary {
+  background: #ffffff !important;
+  border: 1.5px solid #0d9488 !important;
+  color: #042f2e !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+html[data-theme="light"] .btn-outline:hover:not(:disabled),
+html[data-theme="light"] .btn-outline:focus,
+html[data-theme="light"] .btn-outline:active,
+html[data-theme="light"] .btn-outline.active,
+html[data-theme="light"] .btn-secondary:hover:not(:disabled),
+html[data-theme="light"] .btn-secondary:focus,
+html[data-theme="light"] .btn-secondary:active {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28) !important;
 }

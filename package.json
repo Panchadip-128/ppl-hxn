@@ -1,1 +1,15 @@
-{"private":true,"devDependencies":{"jsdom":"27.4.0"}}
+{
+  "name": "grouppay",
+  "private": true,
+  "description": "Multi-buyer collaborative booking and payments integrity framework",
+  "scripts": {
+    "test": "node tests/test_frontend_contract.cjs && node tests/test_expenses_contract.cjs && node tests/test_demo_contract.cjs",
+    "test:frontend": "node tests/test_frontend_contract.cjs",
+    "test:expenses": "node tests/test_expenses_contract.cjs",
+    "test:demo": "node tests/test_demo_contract.cjs",
+    "verify": "python verify_integrity.py"
+  },
+  "devDependencies": {
+    "jsdom": "27.4.0"
+  }
+}

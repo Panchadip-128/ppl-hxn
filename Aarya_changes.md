@@ -1,5 +1,23 @@
 # Aarya changes: guided UI improvements and integration review
 
+## 10 November 2026: Hackathon Rank 1 rigor runner, architectural proof packet and 2026 visual calibration
+
+1. **2026 Visual Calibration & Architectural Form Pass (`public/style.css`, `public/index.html`)**:
+   - **Corner radius reduction ("corners shouldn't be so round")**: Scaled down excessive bubbly radii (18px–24px) to crisp, modern 2026 architectural radii (8px–12px) across `.room-journey` (8px), `.room-next-card` (10px), `.group-item-card` (12px), `.experience-card` (12px), `.room-panel` (12px), `.exp-split-card` (12px), `.modal-card` (14px), `.exp-modal-step` (10px), inputs (8px), and `.page-intro` hero banner (12px).
+   - **Deep separating vertical line**: Upgraded progress step dividers in `.room-journey li` to a deep, vivid 2.5px solid violet (`#7c3aed`) in light mode and 2px (`rgba(168, 85, 247, 0.70)`) in dark mode, ensuring complete visual demarcation between stages.
+   - **Universal dual-theme button click/hover/focus contrast fix**: Fixed root-cause CSS specificity bug where `.btn-outline:hover` set light background without overriding white text. All outline, secondary, and persona buttons now guarantee high contrast in all states: solid dark teal gradient with crisp white text on hover/focus/active in light mode, and vibrant purple gradient in dark mode.
+   - **Lightened background canvas dot grid**: Refined background dot grid from 32% opacity (1.5px) down to 20% opacity (`rgba(13, 148, 136, 0.20)` at 1.25px), producing an airy, non-distracting ambient dot matrix.
+   - **Thick structural 2px borders & light ambient shadows**: Enforced 2px high-definition structural borders with luminous ambient shadows (`inset 0 1px 0 rgba(255, 255, 255, 0.95)`, `0 10px 28px -4px rgba(124, 58, 237, 0.10)`) and micro-elevation hover interactions. Bumped cache-buster to `?v=2026.27`.
+
+2. **Unified Hackathon Rigor Runner (`verify_integrity.py`)**:
+   - Created a single-command CLI runner (`python verify_integrity.py` or `npm run verify`) that validates zero-trust multi-buyer payment integrity, monotonic operation leases, private SVG QR ticket gating, CPU-local BGE fairness recommendations with Minimax regret, group privacy boundaries, and Node client contract suites with a formatted evaluation scorecard.
+
+3. **Judge-Facing Rigor & Architecture Packet (`docs/HACKATHON_RIGOR_EVALUATION.md`)**:
+   - Authored an exhaustive hackathon evaluation packet detailing mathematical formulations (Fairness Objective: $\min \max_i \operatorname{regret}(u_i, x)$), distributed payments state machines, non-blocking network lease guarantees, and zero-knowledge private admission passes.
+
+4. **NPM Integration & Test Automation (`package.json`, `.gitignore`)**:
+   - Added `npm test`, `npm run test:frontend`, `npm run test:expenses`, `npm run test:demo`, and `npm run verify` scripts. Added `jsdom` to devDependencies. Excluded `node_modules/` and `package-lock.json` from git tracking.
+
 ## 10 November 2026: 2026 Editorial UI polish, contrast overhaul and branch publication candidate
 
 Executed a comprehensive dual-theme visual refinement pass across the entire workspace in `public/style.css`, `public/index.html`, and `public/room.js`:

@@ -8,3 +8,5 @@ instance/
 !.env.example
 .pytest_cache/
 review-artifacts/
+node_modules/
+package-lock.json
